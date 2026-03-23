@@ -40,7 +40,7 @@ func TestMongoClientOperationsErrorPaths(t *testing.T) {
 	raw, err := mongo.Connect(
 		options.Client().
 			ApplyURI("mongodb://127.0.0.1:1").
-			SetServerSelectionTimeout(50*time.Millisecond),
+			SetServerSelectionTimeout(50 * time.Millisecond),
 	)
 	require.NoError(t, err)
 
@@ -75,7 +75,12 @@ func TestMongoClientOperationsErrorPaths(t *testing.T) {
 	})
 
 	t.Run("update one", func(t *testing.T) {
-		_, err := client.UpdateOne(context.Background(), "payloads", map[string]any{}, map[string]any{"$set": map[string]any{"a": 1}})
+		_, err := client.UpdateOne(
+			context.Background(),
+			"payloads",
+			map[string]any{},
+			map[string]any{"$set": map[string]any{"a": 1}},
+		)
 		require.Error(t, err)
 	})
 
