@@ -27,8 +27,12 @@ func (s *Server) ListChaos(w http.ResponseWriter, r *http.Request) {
 		views = append(views, buildExperimentView(exp))
 	}
 
-	data := ChaosListData{Active: "chaos", Experiments: views}
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	data := ChaosListData{
+		Active:      "chaos",
+		Title:       "Chaos Experiments | ClusterProbe",
+		Experiments: views,
+	}
+	if err := s.RenderTemplate(w, "chaos", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -39,8 +43,12 @@ func (s *Server) NewChaos(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 	defer s.logRequest(r, "chaos_new")
 
-	data := FormData{Active: "chaos", Now: time.Now()}
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	data := FormData{
+		Active: "chaos",
+		Title:  "New Chaos Experiment | ClusterProbe",
+		Now:    time.Now(),
+	}
+	if err := s.RenderTemplate(w, "chaos-new", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }

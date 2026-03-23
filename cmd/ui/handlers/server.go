@@ -23,14 +23,14 @@ const (
 
 // Server holds UI handler dependencies.
 type Server struct {
-	templates *template.Template
+	templates map[string]*template.Template
 	api       APIClient
 	counters  CounterStore
 	logger    *slog.Logger
 }
 
 // NewServer constructs a UI server.
-func NewServer(templates *template.Template, api APIClient, counters CounterStore, logger *slog.Logger) *Server {
+func NewServer(templates map[string]*template.Template, api APIClient, counters CounterStore, logger *slog.Logger) *Server {
 	return &Server{
 		templates: templates,
 		api:       api,
@@ -40,10 +40,14 @@ func NewServer(templates *template.Template, api APIClient, counters CounterStor
 }
 
 // RenderTemplate renders a named template.
-func (s *Server) RenderTemplate(w http.ResponseWriter, name string, data any) error {
+func (s *Server) RenderTemplate(w http.ResponseWriter, page string, data any) error {
+	tmpl, ok := s.templates[page]
+	if !ok {
+		return fmt.Errorf("template not found: %s", page)
+	}
 	buf := &bytes.Buffer{}
-	if err := s.templates.ExecuteTemplate(buf, name, data); err != nil {
-		return fmt.Errorf("execute template %s: %w", name, err)
+	if err := tmpl.ExecuteTemplate(buf, "base", data); err != nil {
+		return fmt.Errorf("execute template %s: %w", page, err)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, err := w.Write(buf.Bytes())

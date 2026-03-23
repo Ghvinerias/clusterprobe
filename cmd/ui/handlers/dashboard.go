@@ -18,9 +18,13 @@ func (s *Server) Dashboard(w http.ResponseWriter, r *http.Request) {
 	defer s.logRequest(r, "dashboard")
 
 	stats, _, _ := s.buildStats(ctx, 0, time.Time{})
-	data := DashboardData{Active: "dashboard", Stats: stats}
+	data := DashboardData{
+		Active: "dashboard",
+		Title:  "Dashboard | ClusterProbe",
+		Stats:  stats,
+	}
 
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	if err := s.RenderTemplate(w, "dashboard", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -68,8 +72,12 @@ func (s *Server) DashboardStream(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderStats(stats []Stat) (string, error) {
+	tmpl, ok := s.templates["dashboard"]
+	if !ok {
+		return "", fmt.Errorf("template not found: dashboard")
+	}
 	buf := &bytes.Buffer{}
-	if err := s.templates.ExecuteTemplate(buf, "stat-block", stats); err != nil {
+	if err := tmpl.ExecuteTemplate(buf, "stat-block", stats); err != nil {
 		return "", fmt.Errorf("render stats: %w", err)
 	}
 	return buf.String(), nil

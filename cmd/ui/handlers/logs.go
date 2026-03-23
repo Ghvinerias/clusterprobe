@@ -14,8 +14,11 @@ func (s *Server) Logs(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(attribute.String("ui.page", "logs"))
 	defer s.logRequest(r, "logs")
 
-	data := LogsData{Active: "logs"}
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	data := LogsData{
+		Active: "logs",
+		Title:  "Logs | ClusterProbe",
+	}
+	if err := s.RenderTemplate(w, "logs", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }

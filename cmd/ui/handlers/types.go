@@ -53,12 +53,14 @@ type ExperimentView struct {
 // DashboardData renders the dashboard template.
 type DashboardData struct {
 	Active string
+	Title  string
 	Stats  []Stat
 }
 
 // ScenarioListData renders scenarios list.
 type ScenarioListData struct {
 	Active    string
+	Title     string
 	Scenarios []ScenarioView
 	Banner    *Banner
 }
@@ -66,16 +68,19 @@ type ScenarioListData struct {
 // ChaosListData renders chaos list.
 type ChaosListData struct {
 	Active      string
+	Title       string
 	Experiments []ExperimentView
 }
 
 // FormData renders forms.
 type FormData struct {
 	Active string
+	Title  string
 	Now    time.Time
 }
 
 // LogsData renders logs page.
 type LogsData struct {
 	Active string
+	Title  string
 }

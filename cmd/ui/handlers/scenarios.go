@@ -42,8 +42,13 @@ func (s *Server) ListScenarios(w http.ResponseWriter, r *http.Request) {
 		banner = &Banner{Status: "success", StatusClass: "success", Message: "Scenario queued"}
 	}
 
-	data := ScenarioListData{Active: "scenarios", Scenarios: views, Banner: banner}
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	data := ScenarioListData{
+		Active:    "scenarios",
+		Title:     "Scenarios | ClusterProbe",
+		Scenarios: views,
+		Banner:    banner,
+	}
+	if err := s.RenderTemplate(w, "scenarios", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -54,8 +59,12 @@ func (s *Server) NewScenario(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 	defer s.logRequest(r, "scenarios_new")
 
-	data := FormData{Active: "scenarios", Now: time.Now()}
-	if err := s.RenderTemplate(w, "base", data); err != nil {
+	data := FormData{
+		Active: "scenarios",
+		Title:  "New Scenario | ClusterProbe",
+		Now:    time.Now(),
+	}
+	if err := s.RenderTemplate(w, "scenario-new", data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -131,7 +140,12 @@ func (s *Server) StopScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view := buildScenarioView(scenario)
-	if err := s.templates.ExecuteTemplate(w, "scenario-row", view); err != nil {
+	tmpl, ok := s.templates["scenarios"]
+	if !ok {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.ExecuteTemplate(w, "scenario-row", view); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
