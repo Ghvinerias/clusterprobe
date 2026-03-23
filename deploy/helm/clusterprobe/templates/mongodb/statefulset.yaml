@@ -1,0 +1,48 @@
+{{- if .Values.mongodb.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "mongodb") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "mongodb") | nindent 4 }}
+spec:
+  serviceName: {{ include "clusterprobe.componentName" (dict "root" . "component" "mongodb") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: mongodb
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "mongodb") | nindent 8 }}
+    spec:
+      containers:
+        - name: mongodb
+          image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - --config=/etc/mongo/mongod.conf
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: config
+              mountPath: /etc/mongo
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "mongodb") }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.global.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.mongodb.storage }}
+{{- end }}

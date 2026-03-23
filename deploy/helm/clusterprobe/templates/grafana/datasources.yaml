@@ -1,0 +1,32 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-datasources
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 4 }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}:9090
+        isDefault: true
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://{{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}:3100
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://{{ include "clusterprobe.componentName" (dict "root" . "component" "tempo") }}:3200
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: Loki
+            tags: ["trace_id"]
+            spanStartTimeShift: "-5m"
+            spanEndTimeShift: "5m"
+{{- end }}

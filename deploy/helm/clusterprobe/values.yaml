@@ -1,8 +1,150 @@
-global: {}
-api: {}
-worker: {}
-ui: {}
-databases: {}
-rabbitmq: {}
-observability: {}
-chaos: {}
+global:
+  namespace: cluster-probe
+  imagePullPolicy: IfNotPresent
+  storageClass: longhorn
+  secretName: ""
+  environment: dev
+  chaosListenAddr: \":8082\"
+
+api:
+  enabled: true
+  image:
+    repository: docker.io/clusterprobe/clusterprobe-api
+    tag: latest
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  config:
+    listenAddr: ":8080"
+    logLevel: info
+
+worker:
+  enabled: true
+  image:
+    repository: docker.io/clusterprobe/clusterprobe-worker
+    tag: latest
+  replicas: 3
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  config:
+    concurrency: 10
+    logLevel: info
+
+ui:
+  enabled: true
+  image:
+    repository: docker.io/clusterprobe/clusterprobe-ui
+    tag: latest
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8081
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  config:
+    listenAddr: ":8081"
+    apiBaseURL: http://clusterprobe-api:8080
+    logLevel: info
+
+observability:
+  selfContained: true
+  externalEndpoints:
+    prometheus: ""
+    loki: ""
+    tempo: ""
+  alloy:
+    image:
+      repository: grafana/alloy
+      tag: v1.6.1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  prometheus:
+    image:
+      repository: prom/prometheus
+      tag: v2.53.1
+    storage: 20Gi
+  loki:
+    image:
+      repository: grafana/loki
+      tag: 3.1.0
+    storage: 20Gi
+  tempo:
+    image:
+      repository: grafana/tempo
+      tag: 2.5.0
+    storage: 10Gi
+  grafana:
+    image:
+      repository: grafana/grafana
+      tag: 11.2.0
+    storage: 5Gi
+    adminUser: admin
+    adminPassword: admin
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16"
+  storage: 20Gi
+  username: clusterprobe
+  password: changeme
+  database: clusterprobe
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7"
+  storage: 5Gi
+
+mongodb:
+  enabled: true
+  image:
+    repository: mongo
+    tag: "7"
+  storage: 20Gi
+
+rabbitmq:
+  enabled: true
+  image:
+    repository: rabbitmq
+    tag: 3.13-management
+  storage: 10Gi
+
+chaos:
+  enabled: true
+  controller:
+    image:
+      repository: ghcr.io/chaos-mesh/chaos-mesh
+      tag: v2.7.0
+  daemon:
+    image:
+      repository: ghcr.io/chaos-mesh/chaos-daemon
+      tag: v2.7.0

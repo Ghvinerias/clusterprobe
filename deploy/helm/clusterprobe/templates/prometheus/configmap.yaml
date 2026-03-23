@@ -1,0 +1,28 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}-config
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "prometheus") | nindent 4 }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets:
+              - "localhost:9090"
+  rules.yaml: |
+    groups:
+      - name: clusterprobe.rules
+        rules:
+          - record: cp:ops:rate5m
+            expr: sum(rate(clusterprobe_ops_total[5m]))
+          - record: cp:error:rate5m
+            expr: sum(rate(clusterprobe_errors_total[5m]))
+          - record: cp:latency:p99
+            expr: histogram_quantile(0.99, sum(rate(clusterprobe_latency_bucket[5m])) by (le))
+{{- end }}

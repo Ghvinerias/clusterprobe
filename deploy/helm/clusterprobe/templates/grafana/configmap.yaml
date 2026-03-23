@@ -1,0 +1,16 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-config
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 4 }}
+data:
+  grafana.ini: |
+    [security]
+    admin_user = {{ .Values.observability.grafana.adminUser }}
+    admin_password = {{ .Values.observability.grafana.adminPassword }}
+    [users]
+    allow_sign_up = false
+{{- end }}

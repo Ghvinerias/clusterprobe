@@ -1,0 +1,18 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "loki") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+{{- end }}

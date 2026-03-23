@@ -1,0 +1,48 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "loki") | nindent 4 }}
+spec:
+  serviceName: {{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: loki
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "loki") | nindent 8 }}
+    spec:
+      containers:
+        - name: loki
+          image: "{{ .Values.observability.loki.image.repository }}:{{ .Values.observability.loki.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: data
+              mountPath: /loki
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.global.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.observability.loki.storage }}
+{{- end }}

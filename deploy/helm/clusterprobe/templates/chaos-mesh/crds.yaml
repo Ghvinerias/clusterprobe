@@ -1,0 +1,3 @@
+{{- if .Values.chaos.enabled }}
+{{ .Files.Get "manifests/chaos-mesh/chaos-mesh-crds.yaml" }}
+{{- end }}

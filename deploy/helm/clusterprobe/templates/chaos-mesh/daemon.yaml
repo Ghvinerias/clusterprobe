@@ -1,0 +1,40 @@
+{{- if .Values.chaos.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-daemon") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-daemon") | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: chaos-daemon
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-daemon") | nindent 8 }}
+    spec:
+      containers:
+        - name: chaos-daemon
+          image: "{{ .Values.chaos.daemon.image.repository }}:{{ .Values.chaos.daemon.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            privileged: true
+          ports:
+            - name: grpc
+              containerPort: 31767
+          volumeMounts:
+            - name: podruntime
+              mountPath: /var/run
+            - name: hostproc
+              mountPath: /host/proc
+      volumes:
+        - name: podruntime
+          hostPath:
+            path: /var/run
+        - name: hostproc
+          hostPath:
+            path: /proc
+{{- end }}

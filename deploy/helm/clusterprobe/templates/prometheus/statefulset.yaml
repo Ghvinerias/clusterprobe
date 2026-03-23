@@ -1,0 +1,51 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "prometheus") | nindent 4 }}
+spec:
+  serviceName: {{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: prometheus
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "prometheus") | nindent 8 }}
+    spec:
+      containers:
+        - name: prometheus
+          image: "{{ .Values.observability.prometheus.image.repository }}:{{ .Values.observability.prometheus.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --web.enable-remote-write-receiver
+            - --web.enable-lifecycle
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.global.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.observability.prometheus.storage }}
+{{- end }}

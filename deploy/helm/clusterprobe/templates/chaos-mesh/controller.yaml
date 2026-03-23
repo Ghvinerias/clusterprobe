@@ -1,0 +1,94 @@
+{{- if .Values.chaos.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events", "namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["chaos-mesh.org"]
+    resources: ["*", "*/*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+    namespace: {{ include "clusterprobe.namespace" . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: chaos-mesh
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+      containers:
+        - name: controller-manager
+          image: "{{ .Values.chaos.controller.image.repository }}:{{ .Values.chaos.controller.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - controller-manager
+            - --leader-elect=true
+            - --allowed-namespaces={{ include "clusterprobe.namespace" . }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: http
+              containerPort: 10080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "chaos-mesh") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: chaos-mesh
+  ports:
+    - name: http
+      port: 10080
+      targetPort: http
+{{- end }}

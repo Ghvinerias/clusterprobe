@@ -1,0 +1,15 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "tempo") }}-pvc
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "tempo") | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.global.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.tempo.storage }}
+{{- end }}

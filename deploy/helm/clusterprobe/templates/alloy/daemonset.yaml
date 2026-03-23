@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "alloy") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "alloy") | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: alloy
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "alloy") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "clusterprobe.componentName" (dict "root" . "component" "alloy") }}
+      containers:
+        - name: alloy
+          image: "{{ .Values.observability.alloy.image.repository }}:{{ .Values.observability.alloy.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - run
+            - /etc/alloy/config.river
+            - --server.http.listen-addr=0.0.0.0:12345
+          env:
+            - name: CLUSTER_NAME
+              value: {{ .Release.Name | quote }}
+            - name: PROM_REMOTE_WRITE_URL
+              value: {{- if .Values.observability.selfContained -}}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}:9090/api/v1/write"{{- else -}}{{ .Values.observability.externalEndpoints.prometheus | quote }}{{- end }}
+            - name: LOKI_URL
+              value: {{- if .Values.observability.selfContained -}}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}:3100/loki/api/v1/push"{{- else -}}{{ .Values.observability.externalEndpoints.loki | quote }}{{- end }}
+            - name: TEMPO_OTLP_ENDPOINT
+              value: {{- if .Values.observability.selfContained -}}"{{ include "clusterprobe.componentName" (dict "root" . "component" "tempo") }}:4317"{{- else -}}{{ .Values.observability.externalEndpoints.tempo | quote }}{{- end }}
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: http
+              containerPort: 12345
+          resources:
+            {{- toYaml .Values.observability.alloy.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "alloy") }}-config
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+            type: Directory

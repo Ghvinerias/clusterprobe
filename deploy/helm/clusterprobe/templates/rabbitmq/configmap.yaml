@@ -1,0 +1,12 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "rabbitmq") }}-config
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "rabbitmq") | nindent 4 }}
+data:
+  rabbitmq.conf: |
+    loopback_users.guest = false
+{{- end }}

@@ -1,0 +1,18 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+{{- end }}

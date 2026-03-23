@@ -1,0 +1,57 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      labels:
+        {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 8 }}
+    spec:
+      containers:
+        - name: grafana
+          image: "{{ .Values.observability.grafana.image.repository }}:{{ .Values.observability.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-pvc
+        - name: config
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-config
+        - name: datasources
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-datasources
+        - name: dashboards-provider
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-dashboards-provider
+        - name: dashboards
+          configMap:
+            name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-dashboards
+{{- end }}

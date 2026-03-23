@@ -1,0 +1,18 @@
+{{- if .Values.observability.selfContained }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "grafana") }}-dashboards
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "grafana") | nindent 4 }}
+data:
+  overview.json: |-
+{{ .Files.Get "dashboards/overview.json" | indent 4 }}
+  workloads.json: |-
+{{ .Files.Get "dashboards/workloads.json" | indent 4 }}
+  chaos.json: |-
+{{ .Files.Get "dashboards/chaos.json" | indent 4 }}
+  traces.json: |-
+{{ .Files.Get "dashboards/traces.json" | indent 4 }}
+{{- end }}
