@@ -1,0 +1,19 @@
+# What it tests: API resiliency to pod eviction/restart.
+# Success looks like: API stays available, scenario creation returns 2xx.
+# Dashboard: ClusterProbe Overview.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-api
+  namespace: cluster-probe
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: api
+  scheduler:
+    cron: "@every 60s"
+  duration: "5m"

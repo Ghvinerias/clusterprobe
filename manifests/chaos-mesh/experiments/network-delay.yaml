@@ -1,0 +1,28 @@
+# What it tests: Added latency between workers and Postgres.
+# Success looks like: latency increases but workload completes; error rate acceptable.
+# Dashboard: ClusterProbe Overview.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay-worker-postgres
+  namespace: cluster-probe
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: worker
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - cluster-probe
+      labelSelectors:
+        app.kubernetes.io/component: postgres
+  delay:
+    latency: "100ms"
+    jitter: "20ms"
+    correlation: "0"
+  duration: "3m"

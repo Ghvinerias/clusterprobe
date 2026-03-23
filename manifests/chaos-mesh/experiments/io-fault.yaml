@@ -1,0 +1,21 @@
+# What it tests: Postgres resilience to storage latency.
+# Success looks like: queries slow down but succeed without corruption.
+# Dashboard: ClusterProbe Overview.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: io-delay-postgres
+  namespace: cluster-probe
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: postgres
+  volumePath: /var/lib/postgresql/data
+  path: /var/lib/postgresql/data/**
+  delay: 50ms
+  percent: 100
+  duration: "3m"

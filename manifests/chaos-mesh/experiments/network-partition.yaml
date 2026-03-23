@@ -1,0 +1,25 @@
+# What it tests: API reconnection behavior when RabbitMQ is unreachable.
+# Success looks like: API returns errors then recovers without manual restarts.
+# Dashboard: ClusterProbe Chaos.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-partition-api-rabbitmq
+  namespace: cluster-probe
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: api
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - cluster-probe
+      labelSelectors:
+        app.kubernetes.io/component: rabbitmq
+  direction: both
+  duration: "2m"

@@ -1,0 +1,17 @@
+# What it tests: Worker resiliency and queue draining under pod loss.
+# Success looks like: queue depth drops after restart and no stuck scenarios.
+# Dashboard: ClusterProbe Workloads.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-worker
+  namespace: cluster-probe
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: worker
+  duration: "3m"
