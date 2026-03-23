@@ -6,71 +6,47 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRedisSetGetIncrDelExpire(t *testing.T) {
 	server, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("miniredis: %v", err)
-	}
+	require.NoError(t, err)
 	defer server.Close()
 
 	client, err := NewRedis(context.Background(), server.Addr(), "", 0)
-	if err != nil {
-		t.Fatalf("new redis: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() {
 		_ = client.Close()
 	}()
 
-	if err := client.Set(context.Background(), "key", "value", 0); err != nil {
-		t.Fatalf("set: %v", err)
-	}
+	require.NoError(t, client.Set(context.Background(), "key", "value", 0))
 
 	value, err := client.Get(context.Background(), "key")
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if value != "value" {
-		t.Fatalf("unexpected value: %s", value)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "value", value)
 
 	count, err := client.Incr(context.Background(), "counter")
-	if err != nil {
-		t.Fatalf("incr: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("unexpected count: %d", count)
-	}
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
 
 	ok, err := client.Expire(context.Background(), "key", 5*time.Second)
-	if err != nil {
-		t.Fatalf("expire: %v", err)
-	}
-	if !ok {
-		t.Fatalf("expected expire true")
-	}
+	require.NoError(t, err)
+	require.True(t, ok)
 
 	deleted, err := client.Del(context.Background(), "key")
-	if err != nil {
-		t.Fatalf("del: %v", err)
-	}
-	if deleted != 1 {
-		t.Fatalf("unexpected deleted count: %d", deleted)
-	}
+	require.NoError(t, err)
+	require.Equal(t, int64(1), deleted)
 }
 
 func TestRedisPublishSubscribe(t *testing.T) {
 	server, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("miniredis: %v", err)
-	}
+	require.NoError(t, err)
 	defer server.Close()
 
 	client, err := NewRedis(context.Background(), server.Addr(), "", 0)
-	if err != nil {
-		t.Fatalf("new redis: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() {
 		_ = client.Close()
 	}()
@@ -79,22 +55,67 @@ func TestRedisPublishSubscribe(t *testing.T) {
 	defer cancel()
 
 	pubsub, err := client.Subscribe(ctx, "events")
-	if err != nil {
-		t.Fatalf("subscribe: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() {
 		_ = pubsub.Close()
 	}()
 
-	if _, err := client.Publish(ctx, "events", "payload"); err != nil {
-		t.Fatalf("publish: %v", err)
-	}
+	_, err = client.Publish(ctx, "events", "payload")
+	require.NoError(t, err)
 
 	msg, err := pubsub.ReceiveMessage(ctx)
-	if err != nil {
-		t.Fatalf("receive: %v", err)
-	}
-	if msg.Payload != "payload" {
-		t.Fatalf("unexpected payload: %s", msg.Payload)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "payload", msg.Payload)
+}
+
+func TestNewRedisValidation(t *testing.T) {
+	client, err := NewRedis(context.Background(), "", "", 0)
+	require.Error(t, err)
+	require.Nil(t, client)
+}
+
+func TestConnectRedisWithRetryCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	client, err := connectRedisWithRetry(ctx, &redis.Options{Addr: "127.0.0.1:1"})
+	require.Error(t, err)
+	require.Nil(t, client)
+}
+
+func TestRedisErrorPaths(t *testing.T) {
+	server, err := miniredis.Run()
+	require.NoError(t, err)
+
+	client, err := NewRedis(context.Background(), server.Addr(), "", 0)
+	require.NoError(t, err)
+
+	server.Close()
+
+	_, err = client.Publish(context.Background(), "events", "payload")
+	require.Error(t, err)
+
+	_, err = client.Get(context.Background(), "missing")
+	require.Error(t, err)
+
+	err = client.Set(context.Background(), "key", "value", 0)
+	require.Error(t, err)
+
+	_, err = client.Incr(context.Background(), "counter")
+	require.Error(t, err)
+
+	_, err = client.Del(context.Background(), "key")
+	require.Error(t, err)
+
+	_, err = client.Expire(context.Background(), "key", time.Second)
+	require.Error(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	pubsub, err := client.Subscribe(ctx, "events")
+	require.Error(t, err)
+	require.Nil(t, pubsub)
+
+	require.NoError(t, client.Close())
 }
