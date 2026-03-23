@@ -17,3 +17,14 @@ configMapGenerator:
     behavior: replace
     files:
       - config.river=alloy-config.river
+
+images:
+  - name: clusterprobe-api
+    newName: docker.io/slickg/clusterprobe-api
+    newTag: latest
+  - name: clusterprobe-worker
+    newName: docker.io/slickg/clusterprobe-worker
+    newTag: latest
+  - name: clusterprobe-ui
+    newName: docker.io/slickg/clusterprobe-ui
+    newTag: latest
