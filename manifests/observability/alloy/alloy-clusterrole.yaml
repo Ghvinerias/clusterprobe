@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterprobe-alloy
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: alloy
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "daemonsets", "statefulsets", "deployments"]
+    verbs: ["get", "list", "watch"]

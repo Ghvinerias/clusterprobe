@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterprobe-alloy
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: alloy
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterprobe-alloy
+subjects:
+  - kind: ServiceAccount
+    name: clusterprobe-alloy
+    namespace: cluster-probe
