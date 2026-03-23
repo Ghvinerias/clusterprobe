@@ -32,3 +32,8 @@ coverage.out
 *.pem
 *.key
 *.crt
+
+# NTFY environment variables (documented in docs/)
+CP_NTFY_URL
+CP_NTFY_TOPIC
+CP_NTFY_TOKEN
