@@ -135,7 +135,11 @@ type fakeConsumer struct {
 	consumeFn func(ctx context.Context, queue string, handler func(context.Context, amqp.Delivery) error) error
 }
 
-func (c *fakeConsumer) Consume(ctx context.Context, queue string, handler func(context.Context, amqp.Delivery) error) error {
+func (c *fakeConsumer) Consume(
+	ctx context.Context,
+	queue string,
+	handler func(context.Context, amqp.Delivery) error,
+) error {
 	return c.consumeFn(ctx, queue, handler)
 }
 
@@ -147,7 +151,11 @@ func TestStartConsumersGracefulShutdown(t *testing.T) {
 	finish := make(chan struct{})
 
 	consumerFactory := func() (consumer, error) {
-		return &fakeConsumer{consumeFn: func(ctx context.Context, queue string, handler func(context.Context, amqp.Delivery) error) error {
+		return &fakeConsumer{consumeFn: func(
+			ctx context.Context,
+			queue string,
+			handler func(context.Context, amqp.Delivery) error,
+		) error {
 			close(started)
 			if err := handler(ctx, amqp.Delivery{Body: []byte("{}")}); err != nil {
 				return err

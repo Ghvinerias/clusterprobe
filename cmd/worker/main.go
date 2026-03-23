@@ -114,7 +114,13 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("worker metrics server started", "addr", cfg.ChaosListenAddr)
+		slog.Info(
+			"worker metrics server started",
+			"addr", cfg.ChaosListenAddr,
+			"version", version,
+			"commit_sha", commitSHA,
+			"build_date", buildDate,
+		)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("worker metrics server error", "error", err)
 			stop()
