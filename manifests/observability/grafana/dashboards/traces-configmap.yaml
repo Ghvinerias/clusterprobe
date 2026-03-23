@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clusterprobe-dashboard-traces
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+data:
+  traces.json: |
+    {
+      "title": "ClusterProbe Traces",
+      "uid": "clusterprobe-traces",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "type": "nodeGraph",
+          "title": "Service Map",
+          "datasource": "Tempo",
+          "targets": [
+            {"queryType": "serviceMap", "expr": ""}
+          ],
+          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "type": "traces",
+          "title": "Trace List",
+          "datasource": "Tempo",
+          "targets": [
+            {"queryType": "search", "expr": "{}"}
+          ],
+          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "type": "histogram",
+          "title": "Span Duration Distribution",
+          "datasource": "Tempo",
+          "targets": [
+            {"queryType": "traceql", "expr": "{} | histogram(span.duration)"}
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 10}
+        }
+      ]
+    }

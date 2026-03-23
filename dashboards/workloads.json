@@ -1,0 +1,63 @@
+{
+  "title": "ClusterProbe Workloads",
+  "uid": "clusterprobe-workloads",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU Burn Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_workload_ops_total{workload_type=\"cpu_burn\"}[1m])", "legendFormat": "cpu_burn"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Mem Alloc Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_workload_ops_total{workload_type=\"mem_alloc\"}[1m])", "legendFormat": "mem_alloc"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "DB Write Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_workload_ops_total{workload_type=\"db_write\"}[1m])", "legendFormat": "db_write"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "DB Read Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_workload_ops_total{workload_type=\"db_read\"}[1m])", "legendFormat": "db_read"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}
+    },
+    {
+      "type": "histogram",
+      "title": "Latency Histogram",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "sum(rate(cp_workload_duration_seconds_bucket[5m])) by (le, workload_type)", "legendFormat": "{{workload_type}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 8, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker Goroutines",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "go_goroutines", "legendFormat": "goroutines"}
+      ],
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 16}
+    }
+  ]
+}

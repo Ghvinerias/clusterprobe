@@ -1,0 +1,72 @@
+{
+  "title": "ClusterProbe Overview",
+  "uid": "clusterprobe-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Ops/s (rate)",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_ops_total[1m])", "legendFormat": "ops/s"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_errors_total[1m])", "legendFormat": "errors/s"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "P99 Latency",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "histogram_quantile(0.99, sum(rate(cp_workload_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Active Scenarios",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "scenarios_running", "legendFormat": "active"}
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8}
+    },
+    {
+      "type": "stat",
+      "title": "Queue Depth",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "queue_depth", "legendFormat": "depth"}
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Node CPU",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "100 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100", "legendFormat": "cpu"}
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Node Memory",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "legendFormat": "mem"}
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8}
+    }
+  ]
+}

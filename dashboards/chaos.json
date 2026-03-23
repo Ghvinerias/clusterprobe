@@ -1,0 +1,36 @@
+{
+  "title": "ClusterProbe Chaos",
+  "uid": "clusterprobe-chaos",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "logs",
+      "title": "Chaos Experiment Timeline",
+      "datasource": "Loki",
+      "targets": [
+        {"expr": "{service=\"clusterprobe-worker\"} |= \"chaos\""}
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate Around Chaos",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(cp_errors_total[1m])", "legendFormat": "errors/s"}
+      ],
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Pod Restarts",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "sum(kube_pod_container_status_restarts_total)", "legendFormat": "restarts"}
+      ],
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 8}
+    }
+  ]
+}
