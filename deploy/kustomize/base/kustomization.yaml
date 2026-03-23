@@ -13,3 +13,4 @@ resources:
   - ../../../manifests/databases
   - ../../../manifests/api
   - ../../../manifests/worker
+  - ../../../manifests/ui

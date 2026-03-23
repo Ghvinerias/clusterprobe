@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: clusterprobe-ui
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: clusterprobe.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: clusterprobe-ui
+                port:
+                  number: 8081
+  tls:
+    - hosts:
+        - clusterprobe.local
+      secretName: clusterprobe-ui-tls
