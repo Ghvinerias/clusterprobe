@@ -49,7 +49,15 @@ type amqpChannel interface {
 	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
 	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
 	Qos(prefetchCount, prefetchSize int, global bool) error
-	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
+	Consume(
+		queue string,
+		consumer string,
+		autoAck bool,
+		exclusive bool,
+		noLocal bool,
+		noWait bool,
+		args amqp.Table,
+	) (<-chan amqp.Delivery, error)
 	Close() error
 }
 
@@ -382,7 +390,11 @@ func NewConsumer(ctx context.Context, url string, prefetch int) (*Consumer, erro
 }
 
 // Consume starts consuming messages from a queue and invokes handler for each delivery.
-func (c *Consumer) Consume(ctx context.Context, queue string, handler func(context.Context, amqp.Delivery) error) error {
+func (c *Consumer) Consume(
+	ctx context.Context,
+	queue string,
+	handler func(context.Context, amqp.Delivery) error,
+) error {
 	if queue == "" {
 		return fmt.Errorf("queue is required")
 	}

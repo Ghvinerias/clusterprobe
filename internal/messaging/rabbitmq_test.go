@@ -95,7 +95,15 @@ func (m *mockChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
 	return nil
 }
 
-func (m *mockChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+func (m *mockChannel) Consume(
+	queue string,
+	consumer string,
+	autoAck bool,
+	exclusive bool,
+	noLocal bool,
+	noWait bool,
+	args amqp.Table,
+) (<-chan amqp.Delivery, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.consumeCh == nil {
