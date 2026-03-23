@@ -1,0 +1,6 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clusterprobe-api
+spec:
+  replicas: 1
