@@ -1,0 +1,34 @@
+# Go
+/bin/
+/build/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.cover
+coverage.out
+
+# Go work/build cache
+.golangci-lint
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Docker
+*.tar
+
+# Env / secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
