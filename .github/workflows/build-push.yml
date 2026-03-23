@@ -23,9 +23,8 @@ jobs:
         with:
           access_token: ${{ secrets.BW_ACCESS_TOKEN }}
           secrets: |
-            <DOCKERHUB_USERNAME_SECRET_ID> > DOCKERHUB_USERNAME
-            <DOCKERHUB_SECRET_SECRET_ID>   > DOCKERHUB_SECRET
-          # Replace the placeholder IDs above with real Bitwarden secret UUIDs
+            a35d32e4-fc58-4d80-a927-b35400c210f7 > DOCKERHUB_USERNAME
+            5f8b4016-fb5d-45fc-9e13-b35400be5c46 > DOCKERHUB_SECRET
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
