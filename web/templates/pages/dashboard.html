@@ -1,0 +1,13 @@
+{{define "title"}}Dashboard | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>Dashboard</h2>
+  <span class="badge success">Live</span>
+</div>
+
+<section class="card">
+  <div class="stat-grid" id="stats" hx-ext="sse" sse-connect="/dashboard/stream" sse-swap="stats">
+    {{template "stat-block" .Stats}}
+  </div>
+</section>
+{{end}}

@@ -1,0 +1,9 @@
+{{define "stat-block"}}
+  {{range .}}
+    <div class="stat-block">
+      <span class="label">{{.Label}}</span>
+      <span class="value">{{.Value}}</span>
+      <span class="badge {{.StatusClass}}">{{.Status}}</span>
+    </div>
+  {{end}}
+{{end}}

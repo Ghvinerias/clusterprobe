@@ -1,0 +1,40 @@
+{{define "title"}}New Chaos Experiment | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>New Chaos Experiment</h2>
+</div>
+
+<section class="card">
+  <form method="post" action="/chaos" class="form">
+    <div class="form-field">
+      <label for="name">Name</label>
+      <input id="name" name="name" required>
+    </div>
+    <div class="form-field">
+      <label for="scenario">Scenario ID</label>
+      <input id="scenario" name="scenario" required>
+    </div>
+    <div class="form-field">
+      <label for="type">Experiment Type</label>
+      <select id="type" name="type">
+        <option value="pod">Pod</option>
+        <option value="network">Network</option>
+        <option value="io">IO</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="target">Target Selector</label>
+      <input id="target" name="target" placeholder="app=clusterprobe-api" required>
+    </div>
+    <div class="form-field">
+      <label for="duration">Duration (seconds)</label>
+      <input id="duration" name="duration" type="number" min="1" required>
+    </div>
+    <div class="form-field">
+      <label for="parameters">Parameters</label>
+      <textarea id="parameters" name="parameters" rows="4" placeholder="key=value"></textarea>
+    </div>
+    <button type="submit" class="btn">Launch Experiment</button>
+  </form>
+</section>
+{{end}}

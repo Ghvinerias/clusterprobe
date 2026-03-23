@@ -1,0 +1,28 @@
+{{define "title"}}Chaos | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>Chaos Experiments</h2>
+  <a class="btn" href="/chaos/new">New Experiment</a>
+</div>
+
+<section class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Scenario</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="chaos-table">
+      {{range .Experiments}}
+        {{template "experiment-row" .}}
+      {{else}}
+        <tr><td colspan="5">No experiments found.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

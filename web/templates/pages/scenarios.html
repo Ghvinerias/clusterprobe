@@ -1,0 +1,33 @@
+{{define "title"}}Scenarios | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>Scenarios</h2>
+  <a class="btn" href="/scenarios/new">New Scenario</a>
+</div>
+
+{{if .Banner}}
+  {{template "alert-banner" .Banner}}
+{{end}}
+
+<section class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Workload</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="scenario-table">
+      {{range .Scenarios}}
+        {{template "scenario-row" .}}
+      {{else}}
+        <tr><td colspan="6">No scenarios found.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

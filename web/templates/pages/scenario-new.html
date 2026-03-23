@@ -1,0 +1,49 @@
+{{define "title"}}New Scenario | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>New Scenario</h2>
+</div>
+
+<section class="card">
+  <form method="post" action="/scenarios" class="form">
+    <div class="form-field">
+      <label for="name">Name</label>
+      <input id="name" name="name" required>
+    </div>
+    <div class="form-field">
+      <label for="rps">RPS</label>
+      <input id="rps" name="rps" type="number" min="1" required>
+    </div>
+    <div class="form-field">
+      <label for="duration">Duration (seconds)</label>
+      <input id="duration" name="duration" type="number" min="1" required>
+    </div>
+    <div class="form-field">
+      <label for="payload_size">Payload Size (bytes)</label>
+      <input id="payload_size" name="payload_size" type="number" min="0" required>
+    </div>
+    <div class="form-field">
+      <label for="concurrency">Concurrency</label>
+      <input id="concurrency" name="concurrency" type="number" min="1" required>
+    </div>
+    <div class="form-field">
+      <label for="workload_type">Workload Type</label>
+      <select id="workload_type" name="workload_type">
+        <option value="cpu_burn">CPU Burn</option>
+        <option value="mem_alloc">Memory Allocate</option>
+        <option value="db_write">DB Write</option>
+        <option value="db_read">DB Read</option>
+        <option value="mixed">Mixed</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="target_queue">Target Queue</label>
+      <select id="target_queue" name="target_queue">
+        <option value="workload.high">High Priority</option>
+        <option value="workload.low">Low Priority</option>
+      </select>
+    </div>
+    <button type="submit" class="btn">Create Scenario</button>
+  </form>
+</section>
+{{end}}

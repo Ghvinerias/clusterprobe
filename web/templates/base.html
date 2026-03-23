@@ -1,0 +1,32 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}ClusterProbe{{end}}</title>
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
+</head>
+<body hx-boost="true">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <h1>ClusterProbe</h1>
+      <nav class="nav">
+        <a href="/dashboard" class="{{if eq .Active "dashboard"}}active{{end}}">Dashboard</a>
+        <a href="/scenarios" class="{{if eq .Active "scenarios"}}active{{end}}">Scenarios</a>
+        <a href="/chaos" class="{{if eq .Active "chaos"}}active{{end}}">Chaos</a>
+        <a href="/logs" class="{{if eq .Active "logs"}}active{{end}}">Logs</a>
+      </nav>
+    </aside>
+    <main class="main">
+      {{block "content" .}}{{end}}
+    </main>
+  </div>
+</body>
+</html>
+{{end}}

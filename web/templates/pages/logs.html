@@ -1,0 +1,11 @@
+{{define "title"}}Logs | ClusterProbe{{end}}
+{{define "content"}}
+<div class="header">
+  <h2>Logs</h2>
+  <span class="badge">Streaming</span>
+</div>
+
+<section class="card">
+  <div class="terminal-block" id="log-stream" hx-ext="sse" sse-connect="/logs/stream" sse-swap="logs"></div>
+</section>
+{{end}}

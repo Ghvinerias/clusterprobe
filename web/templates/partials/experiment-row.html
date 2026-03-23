@@ -1,0 +1,9 @@
+{{define "experiment-row"}}
+<tr id="experiment-{{.ID}}">
+  <td>{{.ID}}</td>
+  <td>{{.Name}}</td>
+  <td>{{.Scenario}}</td>
+  <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
+  <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+</tr>
+{{end}}
