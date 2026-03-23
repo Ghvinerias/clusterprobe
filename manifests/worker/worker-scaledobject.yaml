@@ -1,0 +1,21 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: clusterprobe-worker
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    autoscaling.keda.sh/paused: "true"
+spec:
+  scaleTargetRef:
+    name: clusterprobe-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: workload.high
+        hostFromEnv: CP_RABBITMQ_URL
