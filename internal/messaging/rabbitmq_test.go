@@ -2,24 +2,31 @@ package messaging
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type mockConn struct {
-	ch       *mockChannel
-	mu       sync.Mutex
-	notifyCh chan *amqp.Error
-	closed   bool
+	ch         amqpChannel
+	channelErr error
+	mu         sync.Mutex
+	notifyCh   chan *amqp.Error
+	closed     bool
 }
 
 func (m *mockConn) Channel() (amqpChannel, error) {
+	if m.channelErr != nil {
+		return nil, m.channelErr
+	}
 	return m.ch, nil
 }
 
@@ -51,12 +58,23 @@ type mockChannel struct {
 	bindings     []string
 	consumeCh    chan amqp.Delivery
 	qosCalls     int
+	publishErr   error
+	exchangeErr  error
+	exchangeName string
+	queueErr     error
+	queueName    string
+	bindErr      error
+	qosErr       error
+	consumeErr   error
 }
 
 func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.publishCalls = append(m.publishCalls, msg)
+	if m.publishErr != nil {
+		return m.publishErr
+	}
 	return nil
 }
 
@@ -70,6 +88,9 @@ func (m *mockChannel) ExchangeDeclare(
 	args amqp.Table,
 ) error {
 	m.exchanges = append(m.exchanges, name)
+	if m.exchangeErr != nil && (m.exchangeName == "" || m.exchangeName == name) {
+		return m.exchangeErr
+	}
 	return nil
 }
 
@@ -82,16 +103,25 @@ func (m *mockChannel) QueueDeclare(
 	args amqp.Table,
 ) (amqp.Queue, error) {
 	m.queues = append(m.queues, name)
+	if m.queueErr != nil && (m.queueName == "" || m.queueName == name) {
+		return amqp.Queue{}, m.queueErr
+	}
 	return amqp.Queue{Name: name}, nil
 }
 
 func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
 	m.bindings = append(m.bindings, name+":"+key+":"+exchange)
+	if m.bindErr != nil {
+		return m.bindErr
+	}
 	return nil
 }
 
 func (m *mockChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
 	m.qosCalls++
+	if m.qosErr != nil {
+		return m.qosErr
+	}
 	return nil
 }
 
@@ -106,6 +136,9 @@ func (m *mockChannel) Consume(
 ) (<-chan amqp.Delivery, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.consumeErr != nil {
+		return nil, m.consumeErr
+	}
 	if m.consumeCh == nil {
 		m.consumeCh = make(chan amqp.Delivery)
 	}
@@ -258,6 +291,65 @@ func TestPublishNoChannel(t *testing.T) {
 	}
 }
 
+func TestProducerValidationAndConnectErrors(t *testing.T) {
+	_, err := NewProducer(context.Background(), "")
+	require.Error(t, err)
+
+	producer := &Producer{
+		dial: func(ctx context.Context) (amqpConn, error) {
+			return nil, errors.New("dial failed")
+		},
+		reconnectCh: make(chan struct{}, 1),
+		tracer:      noop.NewTracerProvider().Tracer("test"),
+	}
+
+	err = producer.connect(context.Background())
+	require.Error(t, err)
+}
+
+func TestPublishErrorFromChannel(t *testing.T) {
+	ch := &mockChannel{publishErr: errors.New("publish failed")}
+	producer := &Producer{
+		conn:    &mockConn{ch: ch},
+		channel: ch,
+		tracer:  noop.NewTracerProvider().Tracer("test"),
+	}
+
+	err := producer.Publish(context.Background(), exchangeName, routingHigh, []byte("{}"))
+	require.Error(t, err)
+}
+
+func TestDeclareTopologyErrors(t *testing.T) {
+	t.Run("no channel", func(t *testing.T) {
+		producer := &Producer{}
+		require.Error(t, producer.DeclareTopology(context.Background()))
+	})
+
+	t.Run("exchange error", func(t *testing.T) {
+		ch := &mockChannel{exchangeErr: errors.New("exchange failed"), exchangeName: exchangeName}
+		producer := &Producer{channel: ch}
+		require.Error(t, producer.DeclareTopology(context.Background()))
+	})
+
+	t.Run("dlx error", func(t *testing.T) {
+		ch := &mockChannel{exchangeErr: errors.New("dlx failed"), exchangeName: dlxName}
+		producer := &Producer{channel: ch}
+		require.Error(t, producer.DeclareTopology(context.Background()))
+	})
+
+	t.Run("queue declare error", func(t *testing.T) {
+		ch := &mockChannel{queueErr: errors.New("queue failed")}
+		producer := &Producer{channel: ch}
+		require.Error(t, producer.DeclareTopology(context.Background()))
+	})
+
+	t.Run("queue bind error", func(t *testing.T) {
+		ch := &mockChannel{bindErr: errors.New("bind failed")}
+		producer := &Producer{channel: ch}
+		require.Error(t, producer.DeclareTopology(context.Background()))
+	})
+}
+
 func TestConsumerReconnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -318,4 +410,149 @@ func TestConsumerReconnect(t *testing.T) {
 	if count < 2 {
 		t.Fatalf("expected reconnect, dial count: %d", count)
 	}
+}
+
+func TestConsumerValidation(t *testing.T) {
+	_, err := NewConsumer(context.Background(), "", 1)
+	require.Error(t, err)
+}
+
+func TestConsumeOnceErrors(t *testing.T) {
+	consumer := &Consumer{tracer: noop.NewTracerProvider().Tracer("test")}
+
+	_, err := consumer.consumeOnce(context.Background())
+	require.Error(t, err)
+
+	consumer.channel = &mockChannel{qosErr: errors.New("qos failed")}
+	consumer.queue = "queue"
+	_, err = consumer.consumeOnce(context.Background())
+	require.Error(t, err)
+
+	consumer.channel = &mockChannel{consumeErr: errors.New("consume failed")}
+	_, err = consumer.consumeOnce(context.Background())
+	require.Error(t, err)
+}
+
+func TestConsumeValidation(t *testing.T) {
+	consumer := &Consumer{}
+	err := consumer.Consume(context.Background(), "", func(context.Context, amqp.Delivery) error { return nil })
+	require.Error(t, err)
+
+	err = consumer.Consume(context.Background(), "queue", nil)
+	require.Error(t, err)
+}
+
+type ackTracker struct {
+	acked   bool
+	nacked  bool
+	requeue bool
+	ackErr  error
+	nackErr error
+}
+
+func (a *ackTracker) Ack(tag uint64, multiple bool) error {
+	a.acked = true
+	return a.ackErr
+}
+
+func (a *ackTracker) Nack(tag uint64, multiple bool, requeue bool) error {
+	a.nacked = true
+	a.requeue = requeue
+	return a.nackErr
+}
+
+func (a *ackTracker) Reject(tag uint64, requeue bool) error {
+	a.nacked = true
+	a.requeue = requeue
+	return a.nackErr
+}
+
+func TestConsumeAckAndNackPaths(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	deliveries := make(chan amqp.Delivery, 2)
+	ch := &mockChannel{consumeCh: deliveries}
+	consumer := &Consumer{
+		channel: ch,
+		queue:   "queue",
+		tracer:  noop.NewTracerProvider().Tracer("test"),
+	}
+
+	ackErrTracker := &ackTracker{ackErr: errors.New("ack failed")}
+	deliveries <- amqp.Delivery{Acknowledger: ackErrTracker, DeliveryTag: 1, RoutingKey: "rk"}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- consumer.Consume(ctx, "queue", func(context.Context, amqp.Delivery) error {
+			return nil
+		})
+	}()
+
+	err := <-errCh
+	require.Error(t, err)
+	require.True(t, ackErrTracker.acked)
+}
+
+func TestConsumeHandlerErrors(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	deliveries := make(chan amqp.Delivery, 2)
+	ch := &mockChannel{consumeCh: deliveries}
+	consumer := &Consumer{
+		channel: ch,
+		queue:   "queue",
+		tracer:  noop.NewTracerProvider().Tracer("test"),
+	}
+
+	unrecoverable := &ackTracker{}
+	recoverable := &ackTracker{}
+
+	deliveries <- amqp.Delivery{Acknowledger: unrecoverable, DeliveryTag: 1, RoutingKey: "rk"}
+	deliveries <- amqp.Delivery{Acknowledger: recoverable, DeliveryTag: 2, RoutingKey: "rk"}
+	close(deliveries)
+
+	handlerCalls := 0
+	err := consumer.Consume(ctx, "queue", func(context.Context, amqp.Delivery) error {
+		handlerCalls++
+		if handlerCalls == 1 {
+			return UnrecoverableError{Err: errors.New("bad")}
+		}
+		cancel()
+		return errors.New("retryable")
+	})
+	require.NoError(t, err)
+	require.True(t, unrecoverable.nacked)
+	require.False(t, unrecoverable.requeue)
+	require.True(t, recoverable.nacked)
+	require.True(t, recoverable.requeue)
+}
+
+func TestUnrecoverableError(t *testing.T) {
+	baseErr := errors.New("boom")
+	err := UnrecoverableError{Err: baseErr}
+	require.Equal(t, "boom", err.Error())
+	require.ErrorIs(t, err, baseErr)
+}
+
+func TestInjectTraceContext(t *testing.T) {
+	provider := sdktrace.NewTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() {
+		_ = provider.Shutdown(context.Background())
+	})
+
+	tracer := otel.Tracer("test")
+	ctx, span := tracer.Start(context.Background(), "span")
+	defer span.End()
+
+	headers := amqp.Table{}
+	otel.GetTextMapPropagator().Inject(ctx, amqpHeaderCarrier(headers))
+
+	consumer := &Consumer{tracer: tracer}
+	msgCtx := consumer.injectTraceContext(context.Background(), amqp.Delivery{Headers: headers})
+	spanCtx := trace.SpanContextFromContext(msgCtx)
+	require.True(t, spanCtx.IsValid())
+	require.Equal(t, span.SpanContext().TraceID(), spanCtx.TraceID())
 }
