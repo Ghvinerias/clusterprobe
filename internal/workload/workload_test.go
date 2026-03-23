@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mockStore struct {
@@ -204,4 +206,108 @@ func TestDBWriteGeneratorDuration(t *testing.T) {
 	if result.Duration <= 0 {
 		t.Fatalf("expected duration")
 	}
+}
+
+func TestDBWriteGeneratorExecError(t *testing.T) {
+	store := &mockStore{execErr: errors.New("exec")}
+	gen := &DBWriteGenerator{}
+	params := WorkloadParams{
+		ScenarioID:   "s1",
+		WorkloadType: WorkloadTypeDBWrite,
+		DurationMs:   1,
+		BatchSize:    1,
+		Store:        store,
+	}
+	_, err := gen.Execute(context.Background(), params)
+	require.Error(t, err)
+}
+
+func TestRandomDurationValidation(t *testing.T) {
+	_, err := randomDuration(0)
+	require.Error(t, err)
+}
+
+type stubGenerator struct {
+	result Result
+	err    error
+}
+
+func (g stubGenerator) Execute(ctx context.Context, params WorkloadParams) (Result, error) {
+	return g.result, g.err
+}
+
+func TestMixedGeneratorErrors(t *testing.T) {
+	gen := &MixedGenerator{}
+	_, err := gen.Execute(context.Background(), WorkloadParams{DurationMs: 1, WorkloadType: WorkloadTypeMixed})
+	require.Error(t, err)
+
+	gen = &MixedGenerator{
+		CPU:     stubGenerator{err: errors.New("cpu")},
+		DBWrite: stubGenerator{},
+		DBRead:  stubGenerator{},
+	}
+	_, err = gen.Execute(context.Background(), WorkloadParams{DurationMs: 1, WorkloadType: WorkloadTypeMixed})
+	require.Error(t, err)
+
+	gen = &MixedGenerator{
+		CPU:     stubGenerator{result: Result{Ops: 1}},
+		DBWrite: stubGenerator{err: errors.New("write")},
+		DBRead:  stubGenerator{},
+	}
+	_, err = gen.Execute(context.Background(), WorkloadParams{DurationMs: 1, WorkloadType: WorkloadTypeMixed})
+	require.Error(t, err)
+
+	gen = &MixedGenerator{
+		CPU:     stubGenerator{result: Result{Ops: 1}},
+		DBWrite: stubGenerator{result: Result{Ops: 1}},
+		DBRead:  stubGenerator{err: errors.New("read")},
+	}
+	_, err = gen.Execute(context.Background(), WorkloadParams{DurationMs: 1, WorkloadType: WorkloadTypeMixed})
+	require.Error(t, err)
+}
+
+func TestTypeValidations(t *testing.T) {
+	validProfile := LoadProfile{
+		RPS:              1,
+		Duration:         time.Second,
+		PayloadSizeBytes: 0,
+		Concurrency:      1,
+		TargetQueue:      "workload.high",
+		WorkloadType:     WorkloadTypeCPUBurn,
+	}
+	require.NoError(t, validProfile.Validate())
+
+	require.Error(t, LoadProfile{}.Validate())
+	require.Error(t, LoadProfile{RPS: 1}.Validate())
+	require.Error(t, LoadProfile{RPS: 1, Duration: time.Second, Concurrency: 1}.Validate())
+	require.Error(t, LoadProfile{RPS: 1, Duration: time.Second, Concurrency: 1, TargetQueue: "queue"}.Validate())
+
+	req := ScenarioRequest{Name: "scenario", Profile: validProfile}
+	require.NoError(t, req.Validate())
+	require.Error(t, ScenarioRequest{}.Validate())
+	require.Error(t, ScenarioRequest{Name: "scenario", Profile: LoadProfile{}}.Validate())
+
+	resp := ScenarioResponse{
+		ID:        "id",
+		Name:      "scenario",
+		Profile:   validProfile,
+		Status:    "running",
+		CreatedAt: time.Now(),
+	}
+	require.NoError(t, resp.Validate())
+	require.Error(t, ScenarioResponse{}.Validate())
+
+	chaosReq := ChaosExperimentRequest{Name: "chaos", Scenario: "scenario"}
+	require.NoError(t, chaosReq.Validate())
+	require.Error(t, ChaosExperimentRequest{}.Validate())
+
+	chaosResp := ChaosExperimentResponse{
+		ID:        "id",
+		Name:      "chaos",
+		Scenario:  "scenario",
+		Status:    "running",
+		CreatedAt: time.Now(),
+	}
+	require.NoError(t, chaosResp.Validate())
+	require.Error(t, ChaosExperimentResponse{}.Validate())
 }
