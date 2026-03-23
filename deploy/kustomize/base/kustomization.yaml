@@ -10,3 +10,4 @@ commonLabels:
 
 resources:
   - namespace.yaml
+  - ../../../manifests/databases
