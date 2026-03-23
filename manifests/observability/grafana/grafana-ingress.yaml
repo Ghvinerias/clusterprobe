@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: clusterprobe-grafana
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: grafana.clusterprobe.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: clusterprobe-grafana
+                port:
+                  number: 3000
