@@ -411,38 +411,48 @@ func (c *Consumer) Consume(ctx context.Context, queue string, handler func(conte
 			}
 		}
 
-		for delivery := range deliveries {
-			msgCtx := c.injectTraceContext(ctx, delivery)
-			msgCtx, span := c.tracer.Start(msgCtx, "rabbitmq.consume")
-			span.SetAttributes(
-				attribute.String("messaging.system", "rabbitmq"),
-				attribute.String("messaging.destination", c.queue),
-				attribute.String("messaging.rabbitmq.routing_key", delivery.RoutingKey),
-			)
+	consumeLoop:
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case delivery, ok := <-deliveries:
+				if !ok {
+					break consumeLoop
+				}
+				msgCtx := c.injectTraceContext(ctx, delivery)
+				msgCtx, span := c.tracer.Start(msgCtx, "rabbitmq.consume")
+				span.SetAttributes(
+					attribute.String("messaging.system", "rabbitmq"),
+					attribute.String("messaging.destination", c.queue),
+					attribute.String("messaging.rabbitmq.routing_key", delivery.RoutingKey),
+				)
 
-			if err := handler(msgCtx, delivery); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, "handler error")
-				if errors.As(err, &UnrecoverableError{}) {
-					if nackErr := delivery.Nack(false, false); nackErr != nil {
-						return fmt.Errorf("nack message: %w", nackErr)
+				if err := handler(msgCtx, delivery); err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, "handler error")
+					var unrecoverable UnrecoverableError
+					if errors.As(err, &unrecoverable) {
+						if nackErr := delivery.Nack(false, false); nackErr != nil {
+							return fmt.Errorf("nack message: %w", nackErr)
+						}
+					} else {
+						if nackErr := delivery.Nack(false, true); nackErr != nil {
+							return fmt.Errorf("nack message: %w", nackErr)
+						}
 					}
-				} else {
-					if nackErr := delivery.Nack(false, true); nackErr != nil {
-						return fmt.Errorf("nack message: %w", nackErr)
-					}
+					span.End()
+					continue
+				}
+
+				if err := delivery.Ack(false); err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, "ack error")
+					span.End()
+					return fmt.Errorf("ack message: %w", err)
 				}
 				span.End()
-				continue
 			}
-
-			if err := delivery.Ack(false); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, "ack error")
-				span.End()
-				return fmt.Errorf("ack message: %w", err)
-			}
-			span.End()
 		}
 	}
 }
