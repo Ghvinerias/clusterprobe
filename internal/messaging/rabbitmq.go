@@ -51,6 +51,22 @@ type amqpChannel interface {
 	Close() error
 }
 
+type realConn struct {
+	conn *amqp.Connection
+}
+
+func (c realConn) Channel() (amqpChannel, error) {
+	return c.conn.Channel()
+}
+
+func (c realConn) NotifyClose(ch chan *amqp.Error) chan *amqp.Error {
+	return c.conn.NotifyClose(ch)
+}
+
+func (c realConn) Close() error {
+	return c.conn.Close()
+}
+
 // NewProducer creates a producer and starts reconnect monitoring.
 func NewProducer(ctx context.Context, url string) (*Producer, error) {
 	if url == "" {
@@ -62,7 +78,7 @@ func NewProducer(ctx context.Context, url string) (*Producer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("rabbitmq dial: %w", err)
 		}
-		return conn, nil
+		return realConn{conn: conn}, nil
 	}
 
 	producer := &Producer{

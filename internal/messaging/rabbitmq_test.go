@@ -8,6 +8,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -66,6 +67,12 @@ func (m *mockChannel) Close() error {
 }
 
 func TestPublishInjectsTraceHeaders(t *testing.T) {
+	provider := sdktrace.NewTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() {
+		_ = provider.Shutdown(context.Background())
+	})
+
 	ch := &mockChannel{}
 	conn := &mockConn{ch: ch}
 	producer := &Producer{
@@ -140,7 +147,17 @@ func TestReconnectOnClose(t *testing.T) {
 	conn := producer.conn.(*mockConn)
 	producer.mu.RUnlock()
 
-	conn.notifyCh <- &amqp.Error{Reason: "closed"}
+	notifyDeadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		if conn.notifyCh != nil {
+			conn.notifyCh <- &amqp.Error{Reason: "closed"}
+			break
+		}
+		if time.Now().After(notifyDeadline) {
+			t.Fatalf("notify channel not set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	deadline := time.Now().Add(1 * time.Second)
 	for time.Now().Before(deadline) {
