@@ -2,6 +2,7 @@ package workload
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -42,7 +43,7 @@ func (g *MemoryGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 	finalizeSpan(span, result, ctx.Err())
 	logCompletion("memory", result, ctx.Err())
 	if err := ctx.Err(); err != nil {
-		return result, err
+		return result, fmt.Errorf("context: %w", err)
 	}
 	return result, nil
 }

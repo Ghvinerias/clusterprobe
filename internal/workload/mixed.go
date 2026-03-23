@@ -53,7 +53,7 @@ func (g *MixedGenerator) Execute(ctx context.Context, params WorkloadParams) (Re
 		result.Error = err.Error()
 		finalizeSpan(span, result, err)
 		logCompletion("mixed", result, err)
-		return result, err
+		return result, fmt.Errorf("cpu workload: %w", err)
 	}
 
 	writeParams := params
@@ -65,7 +65,7 @@ func (g *MixedGenerator) Execute(ctx context.Context, params WorkloadParams) (Re
 		result.Error = err.Error()
 		finalizeSpan(span, result, err)
 		logCompletion("mixed", result, err)
-		return result, err
+		return result, fmt.Errorf("db write workload: %w", err)
 	}
 
 	readParams := params
@@ -77,7 +77,7 @@ func (g *MixedGenerator) Execute(ctx context.Context, params WorkloadParams) (Re
 		result.Error = err.Error()
 		finalizeSpan(span, result, err)
 		logCompletion("mixed", result, err)
-		return result, err
+		return result, fmt.Errorf("db read workload: %w", err)
 	}
 
 	result.Duration = time.Since(start)

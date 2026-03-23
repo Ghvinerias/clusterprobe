@@ -2,8 +2,9 @@ package workload
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -44,13 +45,18 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 		g.latency = hist
 	}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	start := time.Now()
 	deadline := start.Add(time.Duration(params.DurationMs) * time.Millisecond)
 	var ops int64
 
 	for time.Now().Before(deadline) {
-		jitter := time.Duration(rng.Int63n(params.ReadLookbackMs)) * time.Millisecond
+		jitter, err := randomDuration(params.ReadLookbackMs)
+		if err != nil {
+			result := Result{Ops: ops, Duration: time.Since(start), Error: err.Error()}
+			finalizeSpan(span, result, err)
+			logCompletion("db_read", result, err)
+			return result, fmt.Errorf("jitter: %w", err)
+		}
 		since := time.Now().Add(-jitter)
 
 		queryStart := time.Now()
@@ -70,4 +76,15 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 	finalizeSpan(span, result, nil)
 	logCompletion("db_read", result, nil)
 	return result, nil
+}
+
+func randomDuration(maxMs int64) (time.Duration, error) {
+	if maxMs <= 0 {
+		return 0, fmt.Errorf("maxMs must be positive")
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(maxMs))
+	if err != nil {
+		return 0, fmt.Errorf("rand: %w", err)
+	}
+	return time.Duration(n.Int64()) * time.Millisecond, nil
 }

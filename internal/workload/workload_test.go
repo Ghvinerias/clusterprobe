@@ -55,7 +55,10 @@ func TestCPUGenerator(t *testing.T) {
 
 func TestMemoryGenerator(t *testing.T) {
 	gen := &MemoryGenerator{}
-	result, err := gen.Execute(context.Background(), WorkloadParams{DurationMs: 5, AllocMB: 1, WorkloadType: WorkloadTypeMemAlloc})
+	result, err := gen.Execute(
+		context.Background(),
+		WorkloadParams{DurationMs: 5, AllocMB: 1, WorkloadType: WorkloadTypeMemAlloc},
+	)
 	if err != nil {
 		t.Fatalf("memory execute: %v", err)
 	}

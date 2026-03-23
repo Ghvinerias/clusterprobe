@@ -18,7 +18,7 @@ func (g *CPUGenerator) Execute(ctx context.Context, params WorkloadParams) (Resu
 		return Result{}, err
 	}
 
-	ctx, span := otel.Tracer(workloadScope).Start(ctx, "workload.cpu")
+	_, span := otel.Tracer(workloadScope).Start(ctx, "workload.cpu")
 	span.SetAttributes(spanAttributes(params)...)
 	span.SetAttributes(attribute.String("workload.generator", "cpu"))
 	defer span.End()
