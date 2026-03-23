@@ -56,7 +56,11 @@ type realConn struct {
 }
 
 func (c realConn) Channel() (amqpChannel, error) {
-	return c.conn.Channel()
+	ch, err := c.conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("rabbitmq channel: %w", err)
+	}
+	return ch, nil
 }
 
 func (c realConn) NotifyClose(ch chan *amqp.Error) chan *amqp.Error {
@@ -64,7 +68,10 @@ func (c realConn) NotifyClose(ch chan *amqp.Error) chan *amqp.Error {
 }
 
 func (c realConn) Close() error {
-	return c.conn.Close()
+	if err := c.conn.Close(); err != nil {
+		return fmt.Errorf("rabbitmq close: %w", err)
+	}
+	return nil
 }
 
 // NewProducer creates a producer and starts reconnect monitoring.

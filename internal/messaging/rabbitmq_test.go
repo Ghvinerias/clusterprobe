@@ -9,11 +9,12 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type mockConn struct {
 	ch       *mockChannel
+	mu       sync.Mutex
 	notifyCh chan *amqp.Error
 	closed   bool
 }
@@ -23,13 +24,23 @@ func (m *mockConn) Channel() (amqpChannel, error) {
 }
 
 func (m *mockConn) NotifyClose(c chan *amqp.Error) chan *amqp.Error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.notifyCh = c
 	return c
 }
 
 func (m *mockConn) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.closed = true
 	return nil
+}
+
+func (m *mockConn) notifyChannel() chan *amqp.Error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.notifyCh
 }
 
 type mockChannel struct {
@@ -47,12 +58,27 @@ func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, m
 	return nil
 }
 
-func (m *mockChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+func (m *mockChannel) ExchangeDeclare(
+	name string,
+	kind string,
+	durable bool,
+	autoDelete bool,
+	internal bool,
+	noWait bool,
+	args amqp.Table,
+) error {
 	m.exchanges = append(m.exchanges, name)
 	return nil
 }
 
-func (m *mockChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+func (m *mockChannel) QueueDeclare(
+	name string,
+	durable bool,
+	autoDelete bool,
+	exclusive bool,
+	noWait bool,
+	args amqp.Table,
+) (amqp.Queue, error) {
 	m.queues = append(m.queues, name)
 	return amqp.Queue{Name: name}, nil
 }
@@ -149,8 +175,9 @@ func TestReconnectOnClose(t *testing.T) {
 
 	notifyDeadline := time.Now().Add(500 * time.Millisecond)
 	for {
-		if conn.notifyCh != nil {
-			conn.notifyCh <- &amqp.Error{Reason: "closed"}
+		notifyCh := conn.notifyChannel()
+		if notifyCh != nil {
+			notifyCh <- &amqp.Error{Reason: "closed"}
 			break
 		}
 		if time.Now().After(notifyDeadline) {
@@ -201,7 +228,7 @@ func TestProducerCloseNoError(t *testing.T) {
 }
 
 func TestPublishNoChannel(t *testing.T) {
-	producer := &Producer{tracer: trace.NewNoopTracerProvider().Tracer("test")}
+	producer := &Producer{tracer: noop.NewTracerProvider().Tracer("test")}
 	if err := producer.Publish(context.Background(), exchangeName, routingHigh, []byte("{}")); err == nil {
 		t.Fatalf("expected error")
 	}
