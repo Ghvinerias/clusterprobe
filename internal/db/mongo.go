@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 type MongoClient struct {
 	client   *mongo.Client
 	database string
-	tracer   otel.Tracer
+	tracer   trace.Tracer
 }
 
 // NewMongo creates a Mongo client with retry/backoff.

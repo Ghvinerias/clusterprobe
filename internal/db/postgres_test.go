@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/pashagolub/pgxmock/v2"
+	"go.opentelemetry.io/otel"
 )
 
 func TestPostgresExecQuery(t *testing.T) {
@@ -14,9 +15,9 @@ func TestPostgresExecQuery(t *testing.T) {
 	}
 	defer mock.Close()
 
-	client := &PostgresClient{pool: mock}
+	client := &PostgresClient{pool: mock, tracer: otel.Tracer("test")}
 
-	mock.ExpectExec("INSERT INTO load_events").WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectExec("INSERT INTO load_events").WithArgs("s", "{}").WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	if _, err := client.Exec(context.Background(), "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)", "s", "{}"); err != nil {
 		t.Fatalf("exec: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestPostgresInitSchema(t *testing.T) {
 	}
 	defer mock.Close()
 
-	client := &PostgresClient{pool: mock}
+	client := &PostgresClient{pool: mock, tracer: otel.Tracer("test")}
 
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS load_events").WillReturnResult(pgxmock.NewResult("CREATE", 0))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS chaos_events").WillReturnResult(pgxmock.NewResult("CREATE", 0))

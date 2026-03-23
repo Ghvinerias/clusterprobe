@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -27,7 +28,7 @@ var postgresSchemaFS embed.FS
 // PostgresClient wraps a pgx pool.
 type PostgresClient struct {
 	pool   postgresPool
-	tracer otel.Tracer
+	tracer trace.Tracer
 }
 
 type postgresPool interface {

@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 // RedisClient wraps a Redis client.
 type RedisClient struct {
 	client *redis.Client
-	tracer otel.Tracer
+	tracer trace.Tracer
 }
 
 // NewRedis creates a Redis client with retry/backoff.
