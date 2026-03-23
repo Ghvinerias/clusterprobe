@@ -49,6 +49,8 @@ type mockChannel struct {
 	queues       []string
 	exchanges    []string
 	bindings     []string
+	consumeCh    chan amqp.Delivery
+	qosCalls     int
 }
 
 func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
@@ -86,6 +88,20 @@ func (m *mockChannel) QueueDeclare(
 func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
 	m.bindings = append(m.bindings, name+":"+key+":"+exchange)
 	return nil
+}
+
+func (m *mockChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
+	m.qosCalls++
+	return nil
+}
+
+func (m *mockChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.consumeCh == nil {
+		m.consumeCh = make(chan amqp.Delivery)
+	}
+	return m.consumeCh, nil
 }
 
 func (m *mockChannel) Close() error {
@@ -231,5 +247,67 @@ func TestPublishNoChannel(t *testing.T) {
 	producer := &Producer{tracer: noop.NewTracerProvider().Tracer("test")}
 	if err := producer.Publish(context.Background(), exchangeName, routingHigh, []byte("{}")); err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestConsumerReconnect(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var dialCount int
+	var dialMu sync.Mutex
+
+	dialer := func(ctx context.Context) (amqpConn, error) {
+		dialMu.Lock()
+		dialCount++
+		dialMu.Unlock()
+		return &mockConn{ch: &mockChannel{}}, nil
+	}
+
+	consumer := &Consumer{
+		dial:     dialer,
+		prefetch: 1,
+		tracer:   noop.NewTracerProvider().Tracer("test"),
+	}
+
+	if err := consumer.connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+
+	go consumer.monitorReconnect(ctx)
+
+	consumer.mu.RLock()
+	conn := consumer.conn.(*mockConn)
+	consumer.mu.RUnlock()
+
+	notifyDeadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		notifyCh := conn.notifyChannel()
+		if notifyCh != nil {
+			notifyCh <- &amqp.Error{Reason: "closed"}
+			break
+		}
+		if time.Now().After(notifyDeadline) {
+			t.Fatalf("notify channel not set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		dialMu.Lock()
+		count := dialCount
+		dialMu.Unlock()
+		if count >= 2 {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	dialMu.Lock()
+	count := dialCount
+	dialMu.Unlock()
+	if count < 2 {
+		t.Fatalf("expected reconnect, dial count: %d", count)
 	}
 }
