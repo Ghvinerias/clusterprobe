@@ -74,9 +74,12 @@ type ChaosListData struct {
 
 // FormData renders forms.
 type FormData struct {
-	Active string
-	Title  string
-	Now    time.Time
+	Active       string
+	Title        string
+	Now          time.Time
+	ExperimentID string
+	Status       string
+	StatusClass  string
 }
 
 // LogsData renders logs page.

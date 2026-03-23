@@ -1,0 +1,5 @@
+{{define "experiment-status"}}
+<span class="badge {{.StatusClass}}" hx-get="/api/v1/chaos/experiments/{{.ExperimentID}}?view=badge" hx-trigger="every 3s" hx-swap="outerHTML">
+  {{if .Status}}{{.Status}}{{else}}Pending{{end}}
+</span>
+{{end}}

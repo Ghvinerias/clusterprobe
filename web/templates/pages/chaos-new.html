@@ -27,7 +27,7 @@
     </div>
     <div class="form-field">
       <label for="duration">Duration (seconds)</label>
-      <input id="duration" name="duration" type="number" min="1" required>
+      <input id="duration" name="duration" placeholder="3m" required>
     </div>
     <div class="form-field">
       <label for="parameters">Parameters</label>
@@ -36,4 +36,15 @@
     <button type="submit" class="btn">Launch Experiment</button>
   </form>
 </section>
+
+{{if .ExperimentID}}
+<section class="card">
+  <div class="header">
+    <h3>Experiment Status</h3>
+  </div>
+  <div id="experiment-status">
+    {{template "experiment-status" .}}
+  </div>
+</section>
+{{end}}
 {{end}}

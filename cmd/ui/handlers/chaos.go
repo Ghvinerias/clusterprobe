@@ -75,10 +75,21 @@ func (s *Server) CreateChaos(w http.ResponseWriter, r *http.Request) {
 		Config:   config,
 	}
 
-	if _, err := s.api.CreateExperiment(ctx, req); err != nil {
+	resp, err := s.api.CreateExperiment(ctx, req)
+	if err != nil {
 		http.Error(w, "failed to create experiment", http.StatusBadGateway)
 		return
 	}
 
-	http.Redirect(w, r, "/chaos", http.StatusSeeOther)
+	data := FormData{
+		Active:       "chaos",
+		Title:        "New Chaos Experiment | ClusterProbe",
+		Now:          time.Now(),
+		ExperimentID: resp.ID,
+		Status:       resp.Status,
+		StatusClass:  statusClass(resp.Status),
+	}
+	if err := s.RenderTemplate(w, "chaos-new", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
 }

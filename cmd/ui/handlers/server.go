@@ -69,11 +69,17 @@ func statusClass(status string) string {
 		return "error"
 	case strings.Contains(lower, "fail"):
 		return "error"
+	case strings.Contains(lower, "pending"):
+		return "warn"
 	case strings.Contains(lower, "stop"):
 		return "warn"
 	case strings.Contains(lower, "queue"):
 		return "warn"
 	case strings.Contains(lower, "running"):
+		return "success"
+	case strings.Contains(lower, "finish"):
+		return "success"
+	case strings.Contains(lower, "complete"):
 		return "success"
 	default:
 		return ""
