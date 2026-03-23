@@ -26,13 +26,13 @@ discovery.relabel "pods" {
 
   rule {
     target_label = "cluster"
-    replacement  = "REPLACE_CLUSTER_NAME"
+    replacement  = env("CLUSTER_NAME")
   }
 }
 
 loki.write "default" {
   endpoint {
-    url = "REPLACE_LOKI_PUSH_URL"
+    url = "${LOKI_URL}"
   }
 }
 
@@ -43,26 +43,16 @@ loki.source.kubernetes "pods" {
 
 prometheus.remote_write "default" {
   endpoint {
-    url = "REPLACE_PROM_REMOTE_WRITE_URL"
+    url = "${PROMETHEUS_URL}"
   }
 }
 
 prometheus.scrape "clusterprobe" {
   targets = [
     { __address__ = "clusterprobe-api:8080", job = "clusterprobe-api" },
-    { __address__ = "clusterprobe-worker:8081", job = "clusterprobe-worker" },
-    { __address__ = "clusterprobe-ui:8082", job = "clusterprobe-ui" }
+    { __address__ = "clusterprobe-worker:8080", job = "clusterprobe-worker" },
+    { __address__ = "clusterprobe-ui:8081", job = "clusterprobe-ui" },
   ]
-  forward_to = [prometheus.remote_write.default.receiver]
-}
-
-prometheus.scrape "kube-state-metrics" {
-  targets = [{ __address__ = "kube-state-metrics:8080", job = "kube-state-metrics" }]
-  forward_to = [prometheus.remote_write.default.receiver]
-}
-
-prometheus.scrape "node-exporter" {
-  targets = [{ __address__ = "node-exporter:9100", job = "node-exporter" }]
   forward_to = [prometheus.remote_write.default.receiver]
 }
 
@@ -80,12 +70,12 @@ otelcol.receiver.otlp "default" {
 }
 
 otelcol.exporter.otlp "tempo" {
-  endpoint = "REPLACE_TEMPO_OTLP_ENDPOINT"
+  endpoint = "${TEMPO_URL}"
   tls {
     insecure = true
   }
 }
 
 otelcol.exporter.prometheusremotewrite "metrics" {
-  endpoint = "REPLACE_PROM_REMOTE_WRITE_URL"
+  endpoint = "${PROMETHEUS_URL}"
 }

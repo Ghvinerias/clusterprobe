@@ -42,3 +42,25 @@ configMapGenerator:
     behavior: replace
     files:
       - config.river=alloy-config.river
+patches:
+  - target:
+      kind: Deployment
+      name: clusterprobe-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: clusterprobe-worker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: clusterprobe-ui
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
