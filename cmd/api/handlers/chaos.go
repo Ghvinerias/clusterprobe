@@ -128,6 +128,15 @@ func (h *ChaosHandler) GetExperiment(w http.ResponseWriter, r *http.Request) {
 		response.CreatedAt = record.CreatedAt
 	}
 
+	if r.URL.Query().Get("view") == "badge" {
+		badge := renderStatusBadge(id, response.Status)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, err := w.Write([]byte(badge)); err != nil {
+			errorResponse(w, http.StatusInternalServerError, "render badge")
+		}
+		return
+	}
+
 	if err := writeJSON(w, http.StatusOK, response); err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 	}
@@ -299,6 +308,36 @@ func parseLabelSelector(input string) map[string]string {
 		return nil
 	}
 	return map[string]string{key: value}
+}
+
+func renderStatusBadge(id string, status string) string {
+	class := statusBadgeClass(status)
+	if isTerminalStatus(status) {
+		return fmt.Sprintf(`<span class="badge %s">%s</span>`, class, status)
+	}
+	return fmt.Sprintf(
+		`<span class="badge %s" hx-get="/api/v1/chaos/experiments/%s?view=badge" hx-trigger="every 3s" hx-swap="outerHTML">%s</span>`,
+		class,
+		id,
+		status,
+	)
+}
+
+func statusBadgeClass(status string) string {
+	lower := strings.ToLower(status)
+	switch {
+	case strings.Contains(lower, "fail"), strings.Contains(lower, "error"):
+		return "error"
+	case strings.Contains(lower, "running"), strings.Contains(lower, "finish"), strings.Contains(lower, "complete"):
+		return "success"
+	default:
+		return "warn"
+	}
+}
+
+func isTerminalStatus(status string) bool {
+	lower := strings.ToLower(status)
+	return strings.Contains(lower, "running") || strings.Contains(lower, "fail")
 }
 
 type chaosRecord struct {
