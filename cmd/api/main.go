@@ -127,7 +127,11 @@ func main() {
 	}
 }
 
-func buildRouter(postgresClient *db.PostgresClient, redisClient *db.RedisClient, producer *messaging.Producer) http.Handler {
+func buildRouter(
+	postgresClient *db.PostgresClient,
+	redisClient *db.RedisClient,
+	producer *messaging.Producer,
+) http.Handler {
 	adapter := &postgresAdapter{client: postgresClient}
 	redisAdapter := &redisAdapter{client: redisClient}
 
@@ -178,17 +182,33 @@ type rowsAdapter struct {
 	}
 }
 
-func (r rowsAdapter) Close()                 { r.rows.Close() }
-func (r rowsAdapter) Err() error             { return r.rows.Err() }
-func (r rowsAdapter) Next() bool             { return r.rows.Next() }
-func (r rowsAdapter) Scan(dest ...any) error { return r.rows.Scan(dest...) }
+func (r rowsAdapter) Close() { r.rows.Close() }
+func (r rowsAdapter) Err() error {
+	if err := r.rows.Err(); err != nil {
+		return fmt.Errorf("rows err: %w", err)
+	}
+	return nil
+}
+
+func (r rowsAdapter) Next() bool { return r.rows.Next() }
+
+func (r rowsAdapter) Scan(dest ...any) error {
+	if err := r.rows.Scan(dest...); err != nil {
+		return fmt.Errorf("rows scan: %w", err)
+	}
+	return nil
+}
 
 type redisAdapter struct {
 	client *db.RedisClient
 }
 
 func (r *redisAdapter) Get(ctx context.Context, key string) (string, error) {
-	return r.client.Get(ctx, key)
+	value, err := r.client.Get(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("redis get: %w", err)
+	}
+	return value, nil
 }
 
 func newRedisClient(ctx context.Context, dsn string) (*db.RedisClient, error) {
@@ -197,10 +217,18 @@ func newRedisClient(ctx context.Context, dsn string) (*db.RedisClient, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parse redis url: %w", err)
 		}
-		return db.NewRedis(ctx, options.Addr, options.Password, options.DB)
+		client, err := db.NewRedis(ctx, options.Addr, options.Password, options.DB)
+		if err != nil {
+			return nil, fmt.Errorf("redis client: %w", err)
+		}
+		return client, nil
 	}
 
-	return db.NewRedis(ctx, dsn, "", 0)
+	client, err := db.NewRedis(ctx, dsn, "", 0)
+	if err != nil {
+		return nil, fmt.Errorf("redis client: %w", err)
+	}
+	return client, nil
 }
 
 func mongoDatabaseFromURI(uri string) string {

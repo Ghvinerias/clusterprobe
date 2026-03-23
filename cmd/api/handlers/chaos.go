@@ -12,6 +12,11 @@ import (
 const chaosExchange = "clusterprobe.events"
 const chaosRoutingKey = "workload.chaos"
 
+const (
+	insertChaosQuery = "INSERT INTO chaos_events (experiment_name, payload) VALUES ($1, $2)"
+	listChaosQuery   = "SELECT experiment_name, payload, created_at FROM chaos_events ORDER BY created_at DESC LIMIT 50"
+)
+
 // ChaosHandler handles chaos endpoints.
 type ChaosHandler struct {
 	store     PostgresStore
@@ -50,7 +55,7 @@ func (h *ChaosHandler) CreateExperiment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.store.Exec(r.Context(), "INSERT INTO chaos_events (experiment_name, payload) VALUES ($1, $2)", resp.Name, payload); err != nil {
+	if err := h.store.Exec(r.Context(), insertChaosQuery, resp.Name, payload); err != nil {
 		errorResponse(w, http.StatusInternalServerError, "store experiment")
 		return
 	}
@@ -67,7 +72,7 @@ func (h *ChaosHandler) CreateExperiment(w http.ResponseWriter, r *http.Request) 
 
 // ListExperiments handles GET /api/v1/chaos/experiments.
 func (h *ChaosHandler) ListExperiments(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.store.Query(r.Context(), "SELECT experiment_name, payload, created_at FROM chaos_events ORDER BY created_at DESC LIMIT 50")
+	rows, err := h.store.Query(r.Context(), listChaosQuery)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "list experiments")
 		return

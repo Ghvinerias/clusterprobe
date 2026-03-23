@@ -14,6 +14,8 @@ type StatusHandler struct {
 	statusKeys map[string]string
 }
 
+const metricsSnapshotQuery = "SELECT snapshot, created_at FROM metrics_snapshots ORDER BY created_at DESC LIMIT 1"
+
 // NewStatusHandler builds a StatusHandler.
 func NewStatusHandler(store PostgresStore, redis RedisStore) *StatusHandler {
 	return &StatusHandler{
@@ -68,7 +70,7 @@ func (h *StatusHandler) Healthz(w http.ResponseWriter, r *http.Request) {
 
 // MetricsSnapshot handles GET /api/v1/metrics/snapshot.
 func (h *StatusHandler) MetricsSnapshot(w http.ResponseWriter, r *http.Request) {
-	row := h.store.QueryRow(r.Context(), "SELECT snapshot, created_at FROM metrics_snapshots ORDER BY created_at DESC LIMIT 1")
+	row := h.store.QueryRow(r.Context(), metricsSnapshotQuery)
 	var payload []byte
 	var created time.Time
 	if err := row.Scan(&payload, &created); err != nil {

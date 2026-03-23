@@ -3,6 +3,7 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
@@ -28,14 +29,22 @@ func Logging(next http.Handler) http.Handler {
 
 		latency := time.Since(start)
 		traceID := trace.SpanFromContext(r.Context()).SpanContext().TraceID().String()
+		method := sanitizeLogValue(r.Method)
+		path := sanitizeLogValue(r.URL.Path)
 
+		// #nosec G706 -- log values are sanitized to avoid line breaks.
 		slog.Info(
 			"http_request",
-			"method", r.Method,
-			"path", r.URL.Path,
+			"method", method,
+			"path", path,
 			"status", wrapped.status,
 			"latency_ms", latency.Milliseconds(),
 			"trace_id", traceID,
 		)
 	})
+}
+
+func sanitizeLogValue(value string) string {
+	replacer := strings.NewReplacer("\n", " ", "\r", " ")
+	return replacer.Replace(value)
 }

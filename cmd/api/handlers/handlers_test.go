@@ -114,6 +114,20 @@ func buildTestServer(store PostgresStore, redis RedisStore, publisher Publisher)
 	return mux
 }
 
+func scenarioPayloadJSON() []byte {
+	return []byte(`{
+  "name": "test",
+  "profile": {
+    "rps": 1,
+    "duration": 1000000000,
+    "payload_size_bytes": 0,
+    "concurrency": 1,
+    "target_queue": "workload.high",
+    "workload_type": "cpu_burn"
+  }
+}`)
+}
+
 func TestScenarioCreate(t *testing.T) {
 	store := &mockPostgres{
 		execFn: func(ctx context.Context, sql string, args ...any) error {
@@ -125,10 +139,11 @@ func TestScenarioCreate(t *testing.T) {
 			return nil
 		},
 	}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
-	payload := []byte(`{"name":"test","profile":{"rps":1,"duration":1000000000,"payload_size_bytes":0,"concurrency":1,"target_queue":"workload.high","workload_type":"cpu_burn"}}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(payload))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 
 	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
@@ -144,11 +159,16 @@ func TestScenarioCreateError(t *testing.T) {
 			return errors.New("db error")
 		},
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
-	payload := []byte(`{"name":"test","profile":{"rps":1,"duration":1000000000,"payload_size_bytes":0,"concurrency":1,"target_queue":"workload.high","workload_type":"cpu_burn"}}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(payload))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 
 	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
@@ -160,15 +180,35 @@ func TestScenarioCreateError(t *testing.T) {
 
 func TestScenarioList(t *testing.T) {
 	created := time.Now().UTC()
-	row := []any{"id", []byte(`{"id":"id","name":"test","profile":{"rps":1,"duration":1000000000,"payload_size_bytes":0,"concurrency":1,"target_queue":"workload.high","workload_type":"cpu_burn"},"status":"queued","created_at":"` + created.Format(time.RFC3339Nano) + `"}`), created}
+	rowPayload := []byte(`{
+  "id": "id",
+  "name": "test",
+  "profile": {
+    "rps": 1,
+    "duration": 1000000000,
+    "payload_size_bytes": 0,
+    "concurrency": 1,
+    "target_queue": "workload.high",
+    "workload_type": "cpu_burn"
+  },
+  "status": "queued",
+  "created_at": "` + created.Format(time.RFC3339Nano) + `"
+}`)
+	row := []any{"id", rowPayload, created}
 
 	store := &mockPostgres{
 		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
 			return &rowsStub{rows: [][]any{row}}, nil
 		},
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios", nil)
 	rec := httptest.NewRecorder()
@@ -186,8 +226,14 @@ func TestScenarioGetNotFound(t *testing.T) {
 			return &rowStub{err: errors.New("not found")}
 		},
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/abc", nil)
 	rec := httptest.NewRecorder()
@@ -203,10 +249,14 @@ func TestScenarioStopPublishError(t *testing.T) {
 	store := &mockPostgres{
 		execFn: func(ctx context.Context, sql string, args ...any) error { return nil },
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
-		return errors.New("publish")
-	}}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return errors.New("publish")
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/scenarios/abc/stop", nil)
 	rec := httptest.NewRecorder()
@@ -219,13 +269,19 @@ func TestScenarioStopPublishError(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	store := &mockPostgres{queryRowFn: func(ctx context.Context, sql string, args ...any) Row { return &rowStub{} }}
+	store := &mockPostgres{
+		queryRowFn: func(ctx context.Context, sql string, args ...any) Row { return &rowStub{} },
+	}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) {
 			return "1", nil
 		},
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
 	rec := httptest.NewRecorder()
@@ -245,8 +301,14 @@ func TestMetricsSnapshot(t *testing.T) {
 			return &rowStub{values: []any{payload, created}}
 		},
 	}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/snapshot", nil)
 	rec := httptest.NewRecorder()
@@ -260,8 +322,14 @@ func TestMetricsSnapshot(t *testing.T) {
 
 func TestChaosCreate(t *testing.T) {
 	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	payload := []byte(`{"name":"exp","scenario":"s1","config":{"mode":"stress"}}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chaos/experiments", bytes.NewReader(payload))
@@ -276,15 +344,28 @@ func TestChaosCreate(t *testing.T) {
 
 func TestChaosList(t *testing.T) {
 	created := time.Now().UTC()
-	row := []any{"exp", []byte(`{"id":"id","name":"exp","scenario":"s1","status":"queued","created_at":"` + created.Format(time.RFC3339Nano) + `"}`), created}
+	rowPayload := []byte(`{
+  "id": "id",
+  "name": "exp",
+  "scenario": "s1",
+  "status": "queued",
+  "created_at": "` + created.Format(time.RFC3339Nano) + `"
+}`)
+	row := []any{"exp", rowPayload, created}
 
 	store := &mockPostgres{
 		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
 			return &rowsStub{rows: [][]any{row}}, nil
 		},
 	}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/chaos/experiments", nil)
 	rec := httptest.NewRecorder()
@@ -300,7 +381,11 @@ func TestOTELSpansCreated(t *testing.T) {
 	collector, shutdown := startOTLPCollector(t)
 	defer shutdown()
 
-	exporter, err := otlptracegrpc.New(context.Background(), otlptracegrpc.WithEndpoint(collector.addr), otlptracegrpc.WithInsecure())
+	exporter, err := otlptracegrpc.New(
+		context.Background(),
+		otlptracegrpc.WithEndpoint(collector.addr),
+		otlptracegrpc.WithInsecure(),
+	)
 	if err != nil {
 		t.Fatalf("exporter: %v", err)
 	}
@@ -308,12 +393,20 @@ func TestOTELSpansCreated(t *testing.T) {
 	provider := trace.NewTracerProvider(trace.WithBatcher(exporter))
 	otel.SetTracerProvider(provider)
 
-	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
-	redis := &mockRedis{getFn: func(ctx context.Context, key string) (string, error) { return "0", nil }}
+	store := &mockPostgres{
+		execFn: func(ctx context.Context, sql string, args ...any) error { return nil },
+	}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
 
 	handler := buildTestServer(store, redis, publisher)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader([]byte(`{"name":"test","profile":{"rps":1,"duration":1000000000,"payload_size_bytes":0,"concurrency":1,"target_queue":"workload.high","workload_type":"cpu_burn"}}`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -342,7 +435,10 @@ type traceService struct {
 	parent *otlpCollector
 }
 
-func (s *traceService) Export(ctx context.Context, req *collectortest.ExportTraceServiceRequest) (*collectortest.ExportTraceServiceResponse, error) {
+func (s *traceService) Export(
+	ctx context.Context,
+	req *collectortest.ExportTraceServiceRequest,
+) (*collectortest.ExportTraceServiceResponse, error) {
 	atomic.AddInt64(&s.parent.traceCount, 1)
 	return &collectortest.ExportTraceServiceResponse{}, nil
 }

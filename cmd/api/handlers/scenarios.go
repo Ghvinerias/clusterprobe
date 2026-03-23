@@ -12,6 +12,13 @@ import (
 
 const scenariosExchange = "clusterprobe.events"
 
+const (
+	insertScenarioQuery = "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)"
+	listScenarioQuery   = "SELECT scenario_id, payload, created_at FROM load_events ORDER BY created_at DESC LIMIT 50"
+	getScenarioQuery    = "SELECT scenario_id, payload, created_at FROM load_events " +
+		"WHERE scenario_id=$1 ORDER BY created_at DESC LIMIT 1"
+)
+
 // ScenarioHandler handles scenario endpoints.
 type ScenarioHandler struct {
 	store     PostgresStore
@@ -49,7 +56,7 @@ func (h *ScenarioHandler) CreateScenario(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.store.Exec(r.Context(), "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)", resp.ID, payload); err != nil {
+	if err := h.store.Exec(r.Context(), insertScenarioQuery, resp.ID, payload); err != nil {
 		errorResponse(w, http.StatusInternalServerError, "store scenario")
 		return
 	}
@@ -66,7 +73,7 @@ func (h *ScenarioHandler) CreateScenario(w http.ResponseWriter, r *http.Request)
 
 // ListScenarios handles GET /api/v1/scenarios.
 func (h *ScenarioHandler) ListScenarios(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.store.Query(r.Context(), "SELECT scenario_id, payload, created_at FROM load_events ORDER BY created_at DESC LIMIT 50")
+	rows, err := h.store.Query(r.Context(), listScenarioQuery)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "list scenarios")
 		return
@@ -113,7 +120,7 @@ func (h *ScenarioHandler) GetScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row := h.store.QueryRow(r.Context(), "SELECT scenario_id, payload, created_at FROM load_events WHERE scenario_id=$1 ORDER BY created_at DESC LIMIT 1", id)
+	row := h.store.QueryRow(r.Context(), getScenarioQuery, id)
 	var scenarioID string
 	var payload []byte
 	var created time.Time
@@ -158,7 +165,7 @@ func (h *ScenarioHandler) StopScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.Exec(r.Context(), "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)", id, payload); err != nil {
+	if err := h.store.Exec(r.Context(), insertScenarioQuery, id, payload); err != nil {
 		errorResponse(w, http.StatusInternalServerError, "store scenario")
 		return
 	}
