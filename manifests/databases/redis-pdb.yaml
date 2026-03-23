@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: clusterprobe-redis
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clusterprobe
+      app.kubernetes.io/component: redis

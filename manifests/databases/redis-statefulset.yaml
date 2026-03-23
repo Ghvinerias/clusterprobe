@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clusterprobe-redis
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  serviceName: clusterprobe-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clusterprobe
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clusterprobe
+        app.kubernetes.io/component: redis
+        app.kubernetes.io/part-of: clusterprobe
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2
+          ports:
+            - containerPort: 6379
+              name: redis
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clusterprobe-redis-secret
+                  key: REDIS_PASSWORD
+          command:
+            - sh
+            - -c
+            - "redis-server /etc/redis/redis.conf --requirepass $REDIS_PASSWORD"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis/redis.conf
+              subPath: redis.conf
+      volumes:
+        - name: config
+          configMap:
+            name: clusterprobe-redis-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: clusterprobe
+          app.kubernetes.io/component: redis
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 5Gi
