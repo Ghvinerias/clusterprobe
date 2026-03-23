@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../../manifests/observability/alloy/alloy-serviceaccount.yaml
+  - ../../../manifests/observability/alloy/alloy-clusterrole.yaml
+  - ../../../manifests/observability/alloy/alloy-clusterrolebinding.yaml
+  - ../../../manifests/observability/alloy/alloy-daemonset.yaml
+  - ../../../manifests/observability/alloy/alloy-service.yaml
+  - ../../../manifests/observability/prometheus/prometheus-configmap.yaml
+  - ../../../manifests/observability/prometheus/prometheus-rules.yaml
+  - ../../../manifests/observability/prometheus/prometheus-pvc.yaml
+  - ../../../manifests/observability/prometheus/prometheus-statefulset.yaml
+  - ../../../manifests/observability/prometheus/prometheus-service.yaml
+  - ../../../manifests/observability/loki/loki-configmap.yaml
+  - ../../../manifests/observability/loki/loki-pvc.yaml
+  - ../../../manifests/observability/loki/loki-statefulset.yaml
+  - ../../../manifests/observability/loki/loki-service.yaml
+  - ../../../manifests/observability/tempo/tempo-configmap.yaml
+  - ../../../manifests/observability/tempo/tempo-pvc.yaml
+  - ../../../manifests/observability/tempo/tempo-deployment.yaml
+  - ../../../manifests/observability/tempo/tempo-service.yaml
+  - ../../../manifests/observability/grafana/grafana-ini-configmap.yaml
+  - ../../../manifests/observability/grafana/grafana-datasources.yaml
+  - ../../../manifests/observability/grafana/grafana-dashboards-provider.yaml
+  - ../../../manifests/observability/grafana/grafana-secret.yaml
+  - ../../../manifests/observability/grafana/grafana-pvc.yaml
+  - ../../../manifests/observability/grafana/grafana-deployment.yaml
+  - ../../../manifests/observability/grafana/grafana-service.yaml
+  - ../../../manifests/observability/grafana/grafana-ingress.yaml
+  - ../../../manifests/observability/grafana/dashboards/overview-configmap.yaml
+  - ../../../manifests/observability/grafana/dashboards/workloads-configmap.yaml
+  - ../../../manifests/observability/grafana/dashboards/chaos-configmap.yaml
+  - ../../../manifests/observability/grafana/dashboards/traces-configmap.yaml
+configMapGenerator:
+  - name: clusterprobe-alloy-config
+    behavior: replace
+    files:
+      - config.river=alloy-config.river
