@@ -1,0 +1,8 @@
+global: {}
+api: {}
+worker: {}
+ui: {}
+databases: {}
+rabbitmq: {}
+observability: {}
+chaos: {}

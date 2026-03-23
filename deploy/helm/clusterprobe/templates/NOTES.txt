@@ -1,0 +1,5 @@
+ClusterProbe chart installed.
+
+Next steps:
+1. Add service manifests and deployments as they become available.
+2. Configure values in values.yaml before installing in production.
