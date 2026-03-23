@@ -5,13 +5,16 @@ TAG ?= latest
 KUSTOMIZE_DIR ?= deploy/kustomize/base
 HELM_DIR ?= deploy/helm/clusterprobe
 
-.PHONY: build test lint gosec docker-build docker-push kustomize-build helm-lint review
+.PHONY: build test lint gosec docker-build docker-push kustomize-build helm-lint review test-integration
 
 build:
 	go build ./...
 
 test:
 	go test ./...
+
+test-integration:
+	go test ./integration -tags=integration
 
 lint:
 	golangci-lint run
