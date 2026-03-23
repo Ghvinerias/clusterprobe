@@ -29,8 +29,8 @@ func (g *CPUGenerator) Execute(ctx context.Context, params WorkloadParams) (Resu
 	var sink uint64
 
 	for time.Now().Before(deadline) {
-		for i := 0; i < 1000; i++ {
-			sink += uint64(i)
+		for i := uint64(0); i < 1000; i++ {
+			sink += i
 			ops++
 		}
 	}
@@ -38,7 +38,7 @@ func (g *CPUGenerator) Execute(ctx context.Context, params WorkloadParams) (Resu
 	result := Result{Ops: ops, Duration: time.Since(start)}
 	if sink == 0 {
 		result.Error = "cpu loop produced no work"
-		err := fmt.Errorf(result.Error)
+		err := fmt.Errorf("%s", result.Error)
 		finalizeSpan(span, result, err)
 		logCompletion("cpu", result, err)
 		return result, err
