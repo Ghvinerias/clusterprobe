@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Ghvinerias/clusterprobe/internal/messaging"
 	"github.com/Ghvinerias/clusterprobe/internal/workload"
 )
 
@@ -19,8 +18,8 @@ func reportResult(
 	ctx context.Context,
 	scenario workload.ScenarioResponse,
 	result workload.Result,
-	redis *redisAdapter,
-	producer *messaging.Producer,
+	redis redisCounter,
+	producer messagePublisher,
 	store workload.SQLStore,
 ) error {
 	snapshot := map[string]any{

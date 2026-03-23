@@ -121,33 +121,23 @@ func main() {
 		}
 	}()
 
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		queue := queueLow
-		if i%2 == 0 {
-			queue = queueHigh
-		}
-
-		consumer, err := messaging.NewConsumer(ctx, cfg.RabbitMQURL, 1)
-		if err != nil {
-			slog.Error("rabbitmq consumer init failed", "error", err)
-			stop()
-			break
-		}
-
-		wg.Add(1)
-		go func(queue string) {
-			defer wg.Done()
-			err := consumer.Consume(ctx, queue, func(msgCtx context.Context, msg amqp.Delivery) error {
-				workCtx := context.WithoutCancel(msgCtx)
-				return handleMessage(workCtx, msg, generators, store, redis, producer)
-			})
-			if err != nil {
-				slog.Error("consumer stopped", "queue", queue, "error", err)
-				stop()
+	consumerErrCh := make(chan error, 1)
+	go func() {
+		queuePicker := func(i int) string {
+			if i%2 == 0 {
+				return queueHigh
 			}
-		}(queue)
-	}
+			return queueLow
+		}
+		consumerFactory := func() (consumer, error) {
+			return messaging.NewConsumer(ctx, cfg.RabbitMQURL, 1)
+		}
+		handler := func(msgCtx context.Context, msg amqp.Delivery) error {
+			workCtx := context.WithoutCancel(msgCtx)
+			return handleMessage(workCtx, msg, generators, store, redis, producer)
+		}
+		consumerErrCh <- startConsumers(ctx, workerCount, queuePicker, consumerFactory, handler)
+	}()
 
 	<-ctx.Done()
 
@@ -157,7 +147,9 @@ func main() {
 		slog.Error("metrics server shutdown failed", "error", err)
 	}
 
-	wg.Wait()
+	if err := <-consumerErrCh; err != nil && !errors.Is(err, context.Canceled) {
+		slog.Error("consumer pool stopped", "error", err)
+	}
 }
 
 func buildHTTPServer(metricsHandler http.Handler) http.Handler {
@@ -239,8 +231,8 @@ func handleMessage(
 	msg amqp.Delivery,
 	gens map[workload.WorkloadType]workload.Generator,
 	store workload.SQLStore,
-	redis *redisAdapter,
-	producer *messaging.Producer,
+	redis redisCounter,
+	producer messagePublisher,
 ) error {
 	var scenario workload.ScenarioResponse
 	if err := json.Unmarshal(msg.Body, &scenario); err != nil {
@@ -349,6 +341,14 @@ func (r *redisAdapter) Incr(ctx context.Context, key string) error {
 	return nil
 }
 
+type redisCounter interface {
+	Incr(ctx context.Context, key string) error
+}
+
+type messagePublisher interface {
+	Publish(ctx context.Context, exchange, routingKey string, body []byte) error
+}
+
 func newRedisClient(ctx context.Context, dsn string) (*db.RedisClient, error) {
 	if strings.HasPrefix(dsn, "redis://") || strings.HasPrefix(dsn, "rediss://") {
 		options, err := redis.ParseURL(dsn)
@@ -367,4 +367,45 @@ func newRedisClient(ctx context.Context, dsn string) (*db.RedisClient, error) {
 		return nil, fmt.Errorf("redis client: %w", err)
 	}
 	return client, nil
+}
+
+type consumer interface {
+	Consume(ctx context.Context, queue string, handler func(context.Context, amqp.Delivery) error) error
+}
+
+func startConsumers(
+	ctx context.Context,
+	workerCount int,
+	queuePicker func(int) string,
+	consumerFactory func() (consumer, error),
+	handler func(context.Context, amqp.Delivery) error,
+) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, workerCount)
+
+	for i := 0; i < workerCount; i++ {
+		queue := queuePicker(i)
+		c, err := consumerFactory()
+		if err != nil {
+			return fmt.Errorf("create consumer: %w", err)
+		}
+
+		wg.Add(1)
+		go func(queue string, c consumer) {
+			defer wg.Done()
+			if err := c.Consume(ctx, queue, handler); err != nil && !errors.Is(err, context.Canceled) {
+				errCh <- fmt.Errorf("consume %s: %w", queue, err)
+			}
+		}(queue, c)
+	}
+
+	<-ctx.Done()
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
+	}
 }
