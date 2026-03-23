@@ -136,21 +136,21 @@ func parseTemplates() (map[string]*template.Template, error) {
 		"templates/partials/*.html",
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse base templates: %w", err)
 	}
 
 	pageFiles, err := fs.Glob(web.FS, "templates/pages/*.html")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("glob page templates: %w", err)
 	}
 	templates := make(map[string]*template.Template, len(pageFiles))
 	for _, file := range pageFiles {
 		cloned, err := base.Clone()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("clone templates: %w", err)
 		}
 		if _, err := cloned.ParseFS(web.FS, file); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse page template %s: %w", file, err)
 		}
 		name := strings.TrimSuffix(path.Base(file), ".html")
 		templates[name] = cloned

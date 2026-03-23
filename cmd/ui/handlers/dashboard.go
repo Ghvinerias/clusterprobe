@@ -47,8 +47,6 @@ func (s *Server) DashboardStream(w http.ResponseWriter, r *http.Request) {
 
 	prevOps := int64(0)
 	prevTime := time.Time{}
-	ctx = r.Context()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -86,5 +84,8 @@ func (s *Server) renderStats(stats []Stat) (string, error) {
 func writeSSE(w http.ResponseWriter, event string, data string) error {
 	safe := strings.ReplaceAll(data, "\n", "\ndata: ")
 	_, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, safe)
-	return err
+	if err != nil {
+		return fmt.Errorf("write sse: %w", err)
+	}
+	return nil
 }

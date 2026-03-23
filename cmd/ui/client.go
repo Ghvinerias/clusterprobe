@@ -37,7 +37,10 @@ func (c *apiClient) ListScenarios(ctx context.Context) ([]workload.ScenarioRespo
 	return out, nil
 }
 
-func (c *apiClient) CreateScenario(ctx context.Context, req workload.ScenarioRequest) (workload.ScenarioResponse, error) {
+func (c *apiClient) CreateScenario(
+	ctx context.Context,
+	req workload.ScenarioRequest,
+) (workload.ScenarioResponse, error) {
 	var out workload.ScenarioResponse
 	if err := c.doJSON(ctx, http.MethodPost, "/api/v1/scenarios", req, &out); err != nil {
 		return workload.ScenarioResponse{}, err
@@ -62,7 +65,10 @@ func (c *apiClient) ListExperiments(ctx context.Context) ([]workload.ChaosExperi
 	return out, nil
 }
 
-func (c *apiClient) CreateExperiment(ctx context.Context, req workload.ChaosExperimentRequest) (workload.ChaosExperimentResponse, error) {
+func (c *apiClient) CreateExperiment(
+	ctx context.Context,
+	req workload.ChaosExperimentRequest,
+) (workload.ChaosExperimentResponse, error) {
 	var out workload.ChaosExperimentResponse
 	if err := c.doJSON(ctx, http.MethodPost, "/api/v1/chaos/experiments", req, &out); err != nil {
 		return workload.ChaosExperimentResponse{}, err

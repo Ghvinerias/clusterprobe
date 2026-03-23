@@ -30,7 +30,12 @@ type Server struct {
 }
 
 // NewServer constructs a UI server.
-func NewServer(templates map[string]*template.Template, api APIClient, counters CounterStore, logger *slog.Logger) *Server {
+func NewServer(
+	templates map[string]*template.Template,
+	api APIClient,
+	counters CounterStore,
+	logger *slog.Logger,
+) *Server {
 	return &Server{
 		templates: templates,
 		api:       api,
@@ -51,7 +56,10 @@ func (s *Server) RenderTemplate(w http.ResponseWriter, page string, data any) er
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, err := w.Write(buf.Bytes())
-	return err
+	if err != nil {
+		return fmt.Errorf("write template response: %w", err)
+	}
+	return nil
 }
 
 func statusClass(status string) string {

@@ -28,7 +28,13 @@ func (m *mockAPI) ListScenarios(ctx context.Context) ([]workload.ScenarioRespons
 }
 
 func (m *mockAPI) CreateScenario(ctx context.Context, req workload.ScenarioRequest) (workload.ScenarioResponse, error) {
-	return workload.ScenarioResponse{ID: "s1", Name: req.Name, Profile: req.Profile, Status: "queued", CreatedAt: time.Now()}, nil
+	return workload.ScenarioResponse{
+		ID:        "s1",
+		Name:      req.Name,
+		Profile:   req.Profile,
+		Status:    "queued",
+		CreatedAt: time.Now(),
+	}, nil
 }
 
 func (m *mockAPI) StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
@@ -39,8 +45,17 @@ func (m *mockAPI) ListExperiments(ctx context.Context) ([]workload.ChaosExperime
 	return m.experiments, nil
 }
 
-func (m *mockAPI) CreateExperiment(ctx context.Context, req workload.ChaosExperimentRequest) (workload.ChaosExperimentResponse, error) {
-	return workload.ChaosExperimentResponse{ID: "e1", Name: req.Name, Scenario: req.Scenario, Status: "queued", CreatedAt: time.Now()}, nil
+func (m *mockAPI) CreateExperiment(
+	ctx context.Context,
+	req workload.ChaosExperimentRequest,
+) (workload.ChaosExperimentResponse, error) {
+	return workload.ChaosExperimentResponse{
+		ID:        "e1",
+		Name:      req.Name,
+		Scenario:  req.Scenario,
+		Status:    "queued",
+		CreatedAt: time.Now(),
+	}, nil
 }
 
 func (m *mockAPI) LogsStream(ctx context.Context) (io.ReadCloser, error) {
