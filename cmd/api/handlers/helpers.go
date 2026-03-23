@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/Ghvinerias/clusterprobe/internal/chaos"
 )
 
 // Row abstracts database scanning.
@@ -35,6 +37,28 @@ type RedisStore interface {
 // Publisher publishes messages to RabbitMQ.
 type Publisher interface {
 	Publish(ctx context.Context, exchange, routingKey string, body []byte) error
+}
+
+// ChaosEngine manages Chaos Mesh experiments.
+type ChaosEngine interface {
+	Apply(ctx context.Context, spec chaos.ExperimentSpec) (string, error)
+	Status(ctx context.Context, id string) (chaos.ExperimentStatus, error)
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context) ([]chaos.ExperimentStatus, error)
+}
+
+// MongoCursor abstracts Mongo cursor iteration.
+type MongoCursor interface {
+	Next(ctx context.Context) bool
+	Decode(val any) error
+	Err() error
+	Close(ctx context.Context) error
+}
+
+// MongoStore defines minimal MongoDB operations.
+type MongoStore interface {
+	InsertOne(ctx context.Context, collection string, doc any) error
+	Find(ctx context.Context, collection string, filter any) (MongoCursor, error)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) error {

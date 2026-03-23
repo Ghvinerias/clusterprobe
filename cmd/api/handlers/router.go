@@ -42,6 +42,8 @@ func (r *Router) Routes() http.Handler {
 		router.Route("/chaos/experiments", func(router chi.Router) {
 			router.Post("/", r.chaos.CreateExperiment)
 			router.Get("/", r.chaos.ListExperiments)
+			router.Get("/{id}", r.chaos.GetExperiment)
+			router.Delete("/{id}", r.chaos.DeleteExperiment)
 		})
 	})
 

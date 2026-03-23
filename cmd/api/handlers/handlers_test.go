@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Ghvinerias/clusterprobe/cmd/api/middleware"
+	"github.com/Ghvinerias/clusterprobe/internal/chaos"
+	"github.com/Ghvinerias/clusterprobe/internal/workload"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -53,6 +55,72 @@ type mockPublisher struct {
 func (m *mockPublisher) Publish(ctx context.Context, exchange, routingKey string, body []byte) error {
 	return m.publishFn(ctx, exchange, routingKey, body)
 }
+
+type mockChaosEngine struct {
+	applyFn  func(ctx context.Context, spec chaos.ExperimentSpec) (string, error)
+	statusFn func(ctx context.Context, id string) (chaos.ExperimentStatus, error)
+	deleteFn func(ctx context.Context, id string) error
+	listFn   func(ctx context.Context) ([]chaos.ExperimentStatus, error)
+}
+
+func (m *mockChaosEngine) Apply(ctx context.Context, spec chaos.ExperimentSpec) (string, error) {
+	return m.applyFn(ctx, spec)
+}
+
+func (m *mockChaosEngine) Status(ctx context.Context, id string) (chaos.ExperimentStatus, error) {
+	return m.statusFn(ctx, id)
+}
+
+func (m *mockChaosEngine) Delete(ctx context.Context, id string) error {
+	return m.deleteFn(ctx, id)
+}
+
+func (m *mockChaosEngine) List(ctx context.Context) ([]chaos.ExperimentStatus, error) {
+	return m.listFn(ctx)
+}
+
+type mockMongo struct {
+	insertFn func(ctx context.Context, collection string, doc any) error
+	findFn   func(ctx context.Context, collection string, filter any) (MongoCursor, error)
+}
+
+func (m *mockMongo) InsertOne(ctx context.Context, collection string, doc any) error {
+	return m.insertFn(ctx, collection, doc)
+}
+
+func (m *mockMongo) Find(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+	return m.findFn(ctx, collection, filter)
+}
+
+type mockCursor struct {
+	rows []any
+	idx  int
+	err  error
+}
+
+func (m *mockCursor) Next(ctx context.Context) bool {
+	m.idx++
+	return m.idx <= len(m.rows)
+}
+
+func (m *mockCursor) Decode(val any) error {
+	if m.err != nil {
+		return m.err
+	}
+	switch dest := val.(type) {
+	case *chaosRecord:
+		*dest = m.rows[m.idx-1].(chaosRecord)
+	case *workload.ChaosExperimentResponse:
+		*dest = m.rows[m.idx-1].(workload.ChaosExperimentResponse)
+	default:
+		return errors.New("unsupported decode type")
+	}
+	return nil
+}
+
+func (m *mockCursor) Err() error { return m.err }
+
+func (m *mockCursor) Close(ctx context.Context) error { return nil }
 
 type rowStub struct {
 	values []any
@@ -100,10 +168,16 @@ func assign(dest []any, values []any) error {
 	return nil
 }
 
-func buildTestServer(store PostgresStore, redis RedisStore, publisher Publisher) http.Handler {
+func buildTestServer(
+	store PostgresStore,
+	redis RedisStore,
+	mongo MongoStore,
+	publisher Publisher,
+	chaosEngine ChaosEngine,
+) http.Handler {
 	scenarios := NewScenarioHandler(store, publisher)
 	status := NewStatusHandler(store, redis)
-	chaos := NewChaosHandler(store, publisher)
+	chaos := NewChaosHandler(mongo, chaosEngine)
 
 	router := NewRouter(scenarios, status, chaos)
 
@@ -112,6 +186,30 @@ func buildTestServer(store PostgresStore, redis RedisStore, publisher Publisher)
 	mux.Use(middleware.Logging)
 	mux.Mount("/", router.Routes())
 	return mux
+}
+
+func defaultMongo() *mockMongo {
+	return &mockMongo{
+		insertFn: func(ctx context.Context, collection string, doc any) error { return nil },
+		findFn: func(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+			return &mockCursor{}, nil
+		},
+	}
+}
+
+func defaultChaosEngine() *mockChaosEngine {
+	return &mockChaosEngine{
+		applyFn: func(ctx context.Context, spec chaos.ExperimentSpec) (string, error) {
+			return "chaos-id", nil
+		},
+		statusFn: func(ctx context.Context, id string) (chaos.ExperimentStatus, error) {
+			return chaos.ExperimentStatus{ID: id, Name: id, Phase: "Pending"}, nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+		listFn: func(ctx context.Context) ([]chaos.ExperimentStatus, error) {
+			return nil, nil
+		},
+	}
 }
 
 func scenarioPayloadJSON() []byte {
@@ -146,7 +244,7 @@ func TestScenarioCreate(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d", rec.Code)
@@ -171,7 +269,7 @@ func TestScenarioCreateError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
@@ -213,7 +311,7 @@ func TestScenarioList(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -238,7 +336,7 @@ func TestScenarioGetNotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/abc", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
@@ -261,7 +359,7 @@ func TestScenarioStopPublishError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/scenarios/abc/stop", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("expected 502, got %d", rec.Code)
@@ -286,7 +384,7 @@ func TestStatus(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -313,7 +411,7 @@ func TestMetricsSnapshot(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/snapshot", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -322,20 +420,32 @@ func TestMetricsSnapshot(t *testing.T) {
 
 func TestChaosCreate(t *testing.T) {
 	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
-	publisher := &mockPublisher{
-		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
-			return nil
-		},
-	}
+	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
 	}
+	mongo := &mockMongo{
+		insertFn: func(ctx context.Context, collection string, doc any) error { return nil },
+		findFn: func(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+			return &mockCursor{}, nil
+		},
+	}
+	chaosEngine := &mockChaosEngine{
+		applyFn: func(ctx context.Context, spec chaos.ExperimentSpec) (string, error) {
+			return "exp-id", nil
+		},
+		statusFn: func(ctx context.Context, id string) (chaos.ExperimentStatus, error) {
+			return chaos.ExperimentStatus{ID: id, Name: id, Phase: "Pending"}, nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+		listFn:   func(ctx context.Context) ([]chaos.ExperimentStatus, error) { return nil, nil },
+	}
 
-	payload := []byte(`{"name":"exp","scenario":"s1","config":{"mode":"stress"}}`)
+	payload := []byte(`{"name":"exp","scenario":"s1","config":{"type":"pod","target":"app.kubernetes.io/component=api","duration":"5m"}}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chaos/experiments", bytes.NewReader(payload))
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, mongo, publisher, chaosEngine).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d", rec.Code)
@@ -344,33 +454,30 @@ func TestChaosCreate(t *testing.T) {
 
 func TestChaosList(t *testing.T) {
 	created := time.Now().UTC()
-	rowPayload := []byte(`{
-  "id": "id",
-  "name": "exp",
-  "scenario": "s1",
-  "status": "queued",
-  "created_at": "` + created.Format(time.RFC3339Nano) + `"
-}`)
-	row := []any{"exp", rowPayload, created}
-
-	store := &mockPostgres{
-		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
-			return &rowsStub{rows: [][]any{row}}, nil
-		},
-	}
-	publisher := &mockPublisher{
-		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
-			return nil
-		},
-	}
+	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
+	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
 	}
+	mongo := &mockMongo{
+		insertFn: func(ctx context.Context, collection string, doc any) error { return nil },
+		findFn: func(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+			record := chaosRecord{
+				ID:        "id",
+				Name:      "exp",
+				Scenario:  "s1",
+				Status:    "queued",
+				CreatedAt: created,
+			}
+			return &mockCursor{rows: []any{record}}, nil
+		},
+	}
+	chaosEngine := defaultChaosEngine()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/chaos/experiments", nil)
 	rec := httptest.NewRecorder()
 
-	buildTestServer(store, redis, publisher).ServeHTTP(rec, req)
+	buildTestServer(store, redis, mongo, publisher, chaosEngine).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -405,7 +512,7 @@ func TestOTELSpansCreated(t *testing.T) {
 		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
 	}
 
-	handler := buildTestServer(store, redis, publisher)
+	handler := buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine())
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios", bytes.NewReader(scenarioPayloadJSON()))
 	rec := httptest.NewRecorder()
 

@@ -18,10 +18,13 @@ import (
 
 	"github.com/Ghvinerias/clusterprobe/cmd/api/handlers"
 	"github.com/Ghvinerias/clusterprobe/cmd/api/middleware"
+	"github.com/Ghvinerias/clusterprobe/internal/chaos"
 	"github.com/Ghvinerias/clusterprobe/internal/config"
 	"github.com/Ghvinerias/clusterprobe/internal/db"
 	"github.com/Ghvinerias/clusterprobe/internal/messaging"
 	"github.com/Ghvinerias/clusterprobe/internal/telemetry"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -96,7 +99,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	apiRouter := buildRouter(postgresClient, redisClient, producer)
+	chaosClient, err := newChaosClient()
+	if err != nil {
+		slog.Error("chaos client init failed", "error", err)
+		os.Exit(1)
+	}
+
+	apiRouter := buildRouter(postgresClient, redisClient, mongoClient, producer, chaosClient)
 
 	server := &http.Server{
 		Addr:              cfg.APIListenAddr,
@@ -130,14 +139,17 @@ func main() {
 func buildRouter(
 	postgresClient *db.PostgresClient,
 	redisClient *db.RedisClient,
+	mongoClient *db.MongoClient,
 	producer *messaging.Producer,
+	chaosClient *chaos.ChaosClient,
 ) http.Handler {
 	adapter := &postgresAdapter{client: postgresClient}
 	redisAdapter := &redisAdapter{client: redisClient}
+	mongoAdapter := &mongoAdapter{client: mongoClient}
 
 	scenarios := handlers.NewScenarioHandler(adapter, producer)
 	status := handlers.NewStatusHandler(adapter, redisAdapter)
-	chaos := handlers.NewChaosHandler(adapter, producer)
+	chaos := handlers.NewChaosHandler(mongoAdapter, chaosClient)
 
 	router := handlers.NewRouter(scenarios, status, chaos)
 
@@ -147,6 +159,18 @@ func buildRouter(
 	mux.Mount("/", router.Routes())
 
 	return mux
+}
+
+func newChaosClient() (*chaos.ChaosClient, error) {
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("in cluster config: %w", err)
+	}
+	client, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic client: %w", err)
+	}
+	return chaos.NewChaosClient(client, "cluster-probe"), nil
 }
 
 type postgresAdapter struct {
@@ -240,4 +264,55 @@ func mongoDatabaseFromURI(uri string) string {
 		return "clusterprobe"
 	}
 	return strings.TrimPrefix(parsed.Path, "/")
+}
+
+type mongoAdapter struct {
+	client *db.MongoClient
+}
+
+func (m *mongoAdapter) InsertOne(ctx context.Context, collection string, doc any) error {
+	if _, err := m.client.InsertOne(ctx, collection, doc); err != nil {
+		return fmt.Errorf("mongo insert: %w", err)
+	}
+	return nil
+}
+
+func (m *mongoAdapter) Find(ctx context.Context, collection string, filter any) (handlers.MongoCursor, error) {
+	cursor, err := m.client.Find(ctx, collection, filter)
+	if err != nil {
+		return nil, fmt.Errorf("mongo find: %w", err)
+	}
+	return mongoCursor{cursor: cursor}, nil
+}
+
+type mongoCursor struct {
+	cursor interface {
+		Next(ctx context.Context) bool
+		Decode(val any) error
+		Err() error
+		Close(ctx context.Context) error
+	}
+}
+
+func (m mongoCursor) Next(ctx context.Context) bool { return m.cursor.Next(ctx) }
+
+func (m mongoCursor) Decode(val any) error {
+	if err := m.cursor.Decode(val); err != nil {
+		return fmt.Errorf("mongo decode: %w", err)
+	}
+	return nil
+}
+
+func (m mongoCursor) Err() error {
+	if err := m.cursor.Err(); err != nil {
+		return fmt.Errorf("mongo cursor err: %w", err)
+	}
+	return nil
+}
+
+func (m mongoCursor) Close(ctx context.Context) error {
+	if err := m.cursor.Close(ctx); err != nil {
+		return fmt.Errorf("mongo cursor close: %w", err)
+	}
+	return nil
 }
