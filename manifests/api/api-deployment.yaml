@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/component: api
         app.kubernetes.io/part-of: clusterprobe
     spec:
+      serviceAccountName: clusterprobe-api
       containers:
         - name: api
           image: clusterprobe-api:latest

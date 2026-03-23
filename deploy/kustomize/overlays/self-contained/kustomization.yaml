@@ -32,6 +32,11 @@ resources:
   - ../../../manifests/observability/grafana/dashboards/workloads-configmap.yaml
   - ../../../manifests/observability/grafana/dashboards/chaos-configmap.yaml
   - ../../../manifests/observability/grafana/dashboards/traces-configmap.yaml
+  - ../../../manifests/chaos-mesh/chaos-mesh-namespace.yaml
+  - ../../../manifests/chaos-mesh/chaos-mesh-crds.yaml
+  - ../../../manifests/chaos-mesh/chaos-mesh-controller.yaml
+  - ../../../manifests/chaos-mesh/chaos-mesh-daemon.yaml
+  - ../../../manifests/chaos-mesh/chaos-mesh-api-rbac.yaml
 configMapGenerator:
   - name: clusterprobe-alloy-config
     behavior: replace

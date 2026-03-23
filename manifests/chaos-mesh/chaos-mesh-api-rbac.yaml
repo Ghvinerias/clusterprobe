@@ -1,0 +1,36 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: clusterprobe-api-chaos
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: chaos-mesh
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+rules:
+  - apiGroups: ["chaos-mesh.org"]
+    resources:
+      - podchaos
+      - networkchaos
+      - iochaos
+      - stresschaos
+      - timechaos
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: clusterprobe-api-chaos
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: chaos-mesh
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: clusterprobe-api-chaos
+subjects:
+  - kind: ServiceAccount
+    name: clusterprobe-api
+    namespace: cluster-probe
