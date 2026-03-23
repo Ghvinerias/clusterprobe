@@ -28,11 +28,11 @@ spec:
             - name: CLUSTER_NAME
               value: {{ .Release.Name | quote }}
             - name: PROM_REMOTE_WRITE_URL
-              value: {{- if .Values.observability.selfContained -}}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}:9090/api/v1/write"{{- else -}}{{ .Values.observability.externalEndpoints.prometheus | quote }}{{- end }}
+              value: {{ if .Values.observability.selfContained }}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "prometheus") }}:9090/api/v1/write"{{ else }}{{ .Values.observability.externalEndpoints.prometheus | quote }}{{ end }}
             - name: LOKI_URL
-              value: {{- if .Values.observability.selfContained -}}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}:3100/loki/api/v1/push"{{- else -}}{{ .Values.observability.externalEndpoints.loki | quote }}{{- end }}
+              value: {{ if .Values.observability.selfContained }}"http://{{ include "clusterprobe.componentName" (dict "root" . "component" "loki") }}:3100/loki/api/v1/push"{{ else }}{{ .Values.observability.externalEndpoints.loki | quote }}{{ end }}
             - name: TEMPO_OTLP_ENDPOINT
-              value: {{- if .Values.observability.selfContained -}}"{{ include "clusterprobe.componentName" (dict "root" . "component" "tempo") }}:4317"{{- else -}}{{ .Values.observability.externalEndpoints.tempo | quote }}{{- end }}
+              value: {{ if .Values.observability.selfContained }}"{{ include "clusterprobe.componentName" (dict "root" . "component" "tempo") }}:4317"{{ else }}{{ .Values.observability.externalEndpoints.tempo | quote }}{{ end }}
           ports:
             - name: otlp-grpc
               containerPort: 4317
@@ -41,7 +41,7 @@ spec:
             - name: http
               containerPort: 12345
           resources:
-            {{- toYaml .Values.observability.alloy.resources | nindent 12 }}
+            {{ toYaml .Values.observability.alloy.resources | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: /etc/alloy

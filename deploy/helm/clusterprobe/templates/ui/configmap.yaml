@@ -7,11 +7,11 @@ metadata:
   labels:
     {{- include "clusterprobe.componentLabels" (dict "root" . "component" "ui") | nindent 4 }}
 data:
-  CP_POSTGRES_DSN: "postgres://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ include \"clusterprobe.componentName\" (dict \"root\" . \"component\" \"postgres\") }}:5432/{{ .Values.postgres.database }}?sslmode=disable"
-  CP_REDIS_DSN: "redis://{{ include \"clusterprobe.componentName\" (dict \"root\" . \"component\" \"redis\") }}:6379/0"
-  CP_MONGO_DSN: "mongodb://{{ include \"clusterprobe.componentName\" (dict \"root\" . \"component\" \"mongodb\") }}:27017/{{ .Values.postgres.database }}"
-  CP_RABBITMQ_URL: "amqp://{{ include \"clusterprobe.componentName\" (dict \"root\" . \"component\" \"rabbitmq\") }}:5672/"
-  CP_OTEL_ENDPOINT: "{{- if .Values.observability.selfContained -}}{{ include \"clusterprobe.componentName\" (dict \"root\" . \"component\" \"alloy\") }}:4317{{- else -}}{{ .Values.observability.externalEndpoints.tempo }}{{- end -}}"
+  CP_POSTGRES_DSN: "postgres://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ include "clusterprobe.componentName" (dict "root" . "component" "postgres") }}:5432/{{ .Values.postgres.database }}?sslmode=disable"
+  CP_REDIS_DSN: "redis://{{ include "clusterprobe.componentName" (dict "root" . "component" "redis") }}:6379/0"
+  CP_MONGO_DSN: "mongodb://{{ include "clusterprobe.componentName" (dict "root" . "component" "mongodb") }}:27017/{{ .Values.postgres.database }}"
+  CP_RABBITMQ_URL: "amqp://{{ include "clusterprobe.componentName" (dict "root" . "component" "rabbitmq") }}:5672/"
+  CP_OTEL_ENDPOINT: "{{- if .Values.observability.selfContained -}}{{ include "clusterprobe.componentName" (dict "root" . "component" "alloy") }}:4317{{- else -}}{{ .Values.observability.externalEndpoints.tempo }}{{- end -}}"
   CP_API_LISTEN_ADDR: {{ .Values.api.config.listenAddr | quote }}
   CP_UI_LISTEN_ADDR: {{ .Values.ui.config.listenAddr | quote }}
   CP_CHAOS_LISTEN_ADDR: {{ .Values.global.chaosListenAddr | quote }}

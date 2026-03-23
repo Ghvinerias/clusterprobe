@@ -2,16 +2,16 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
-  - ../../../manifests/observability/alloy/alloy-serviceaccount.yaml
-  - ../../../manifests/observability/alloy/alloy-clusterrole.yaml
-  - ../../../manifests/observability/alloy/alloy-clusterrolebinding.yaml
-  - ../../../manifests/observability/alloy/alloy-daemonset.yaml
-  - ../../../manifests/observability/alloy/alloy-service.yaml
-  - ../../../manifests/chaos-mesh/chaos-mesh-namespace.yaml
-  - ../../../manifests/chaos-mesh/chaos-mesh-crds.yaml
-  - ../../../manifests/chaos-mesh/chaos-mesh-controller.yaml
-  - ../../../manifests/chaos-mesh/chaos-mesh-daemon.yaml
-  - ../../../manifests/chaos-mesh/chaos-mesh-api-rbac.yaml
+  - ../../../../manifests/observability/alloy/alloy-serviceaccount.yaml
+  - ../../../../manifests/observability/alloy/alloy-clusterrole.yaml
+  - ../../../../manifests/observability/alloy/alloy-clusterrolebinding.yaml
+  - ../../../../manifests/observability/alloy/alloy-daemonset.yaml
+  - ../../../../manifests/observability/alloy/alloy-service.yaml
+  - ../../../../manifests/observability/alloy/alloy-configmap.yaml
+  - ../../../../manifests/chaos-mesh/chaos-mesh-crds.yaml
+  - ../../../../manifests/chaos-mesh/chaos-mesh-controller.yaml
+  - ../../../../manifests/chaos-mesh/chaos-mesh-daemon.yaml
+  - ../../../../manifests/chaos-mesh/chaos-mesh-api-rbac.yaml
 configMapGenerator:
   - name: clusterprobe-alloy-config
     behavior: replace

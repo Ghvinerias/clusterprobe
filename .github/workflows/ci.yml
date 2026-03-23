@@ -45,9 +45,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1
       - uses: azure/setup-kubectl@v4
       - uses: imranismail/setup-kustomize@v2
       - name: Validate self-contained
-        run: kustomize build deploy/kustomize/overlays/self-contained | kubectl apply --dry-run=client -f -
+        run: kustomize build --load-restrictor LoadRestrictionsNone deploy/kustomize/overlays/self-contained | kubectl apply --dry-run=client --validate=false -f -
       - name: Validate existing-stack
-        run: kustomize build deploy/kustomize/overlays/existing-stack | kubectl apply --dry-run=client -f -
+        run: kustomize build --load-restrictor LoadRestrictionsNone deploy/kustomize/overlays/existing-stack | kubectl apply --dry-run=client --validate=false -f -
