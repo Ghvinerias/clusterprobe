@@ -1,0 +1,191 @@
+package messaging
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+)
+
+type mockConn struct {
+	ch       *mockChannel
+	notifyCh chan *amqp.Error
+	closed   bool
+}
+
+func (m *mockConn) Channel() (amqpChannel, error) {
+	return m.ch, nil
+}
+
+func (m *mockConn) NotifyClose(c chan *amqp.Error) chan *amqp.Error {
+	m.notifyCh = c
+	return c
+}
+
+func (m *mockConn) Close() error {
+	m.closed = true
+	return nil
+}
+
+type mockChannel struct {
+	publishCalls []amqp.Publishing
+	mu           sync.Mutex
+	queues       []string
+	exchanges    []string
+	bindings     []string
+}
+
+func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.publishCalls = append(m.publishCalls, msg)
+	return nil
+}
+
+func (m *mockChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	m.exchanges = append(m.exchanges, name)
+	return nil
+}
+
+func (m *mockChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+	m.queues = append(m.queues, name)
+	return amqp.Queue{Name: name}, nil
+}
+
+func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
+	m.bindings = append(m.bindings, name+":"+key+":"+exchange)
+	return nil
+}
+
+func (m *mockChannel) Close() error {
+	return nil
+}
+
+func TestPublishInjectsTraceHeaders(t *testing.T) {
+	ch := &mockChannel{}
+	conn := &mockConn{ch: ch}
+	producer := &Producer{
+		conn:    conn,
+		channel: ch,
+		tracer:  otel.Tracer("test"),
+	}
+
+	ctx, span := producer.tracer.Start(context.Background(), "span")
+	defer span.End()
+
+	if err := producer.Publish(ctx, exchangeName, routingHigh, []byte("{}")); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	if len(ch.publishCalls) != 1 {
+		t.Fatalf("expected publish call")
+	}
+
+	msg := ch.publishCalls[0]
+	if _, ok := msg.Headers["traceparent"]; !ok {
+		t.Fatalf("expected traceparent header")
+	}
+}
+
+func TestDeclareTopology(t *testing.T) {
+	ch := &mockChannel{}
+	producer := &Producer{channel: ch}
+
+	if err := producer.DeclareTopology(context.Background()); err != nil {
+		t.Fatalf("declare topology: %v", err)
+	}
+
+	if len(ch.exchanges) != 2 {
+		t.Fatalf("expected exchanges declared")
+	}
+	if len(ch.queues) != 6 {
+		t.Fatalf("expected queues declared")
+	}
+	if len(ch.bindings) != 6 {
+		t.Fatalf("expected bindings declared")
+	}
+}
+
+func TestReconnectOnClose(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var dialCount int
+	var mu sync.Mutex
+
+	dialer := func(ctx context.Context) (amqpConn, error) {
+		mu.Lock()
+		dialCount++
+		mu.Unlock()
+		return &mockConn{ch: &mockChannel{}}, nil
+	}
+
+	producer := &Producer{
+		dial:        dialer,
+		reconnectCh: make(chan struct{}, 1),
+		tracer:      otel.Tracer("test"),
+	}
+
+	if err := producer.connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+
+	go producer.monitorReconnect(ctx)
+
+	producer.mu.RLock()
+	conn := producer.conn.(*mockConn)
+	producer.mu.RUnlock()
+
+	conn.notifyCh <- &amqp.Error{Reason: "closed"}
+
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		count := dialCount
+		mu.Unlock()
+		if count >= 2 {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	mu.Lock()
+	count := dialCount
+	mu.Unlock()
+	if count < 2 {
+		t.Fatalf("expected reconnect, dial count: %d", count)
+	}
+}
+
+func TestHeaderCarrier(t *testing.T) {
+	carrier := amqpHeaderCarrier(amqp.Table{})
+	carrier.Set("traceparent", "value")
+	if carrier.Get("traceparent") != "value" {
+		t.Fatalf("expected value")
+	}
+	if len(carrier.Keys()) != 1 {
+		t.Fatalf("expected keys")
+	}
+}
+
+func TestProducerCloseNoError(t *testing.T) {
+	producer := &Producer{
+		conn:    &mockConn{ch: &mockChannel{}},
+		channel: &mockChannel{},
+	}
+
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+}
+
+func TestPublishNoChannel(t *testing.T) {
+	producer := &Producer{tracer: trace.NewNoopTracerProvider().Tracer("test")}
+	if err := producer.Publish(context.Background(), exchangeName, routingHigh, []byte("{}")); err == nil {
+		t.Fatalf("expected error")
+	}
+}
