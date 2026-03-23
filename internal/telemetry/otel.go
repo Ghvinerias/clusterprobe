@@ -14,8 +14,9 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Config defines the telemetry bootstrap configuration.
@@ -37,7 +38,7 @@ func Init(ctx context.Context, cfg Config) (func(), error) {
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(cfg.ServiceName),
 			semconv.ServiceVersionKey.String(cfg.ServiceVersion),
-			semconv.DeploymentEnvironmentKey.String(cfg.Environment),
+			semconv.DeploymentEnvironmentNameKey.String(cfg.Environment),
 		),
 		resource.WithFromEnv(),
 		resource.WithProcess(),
@@ -66,9 +67,9 @@ func Init(ctx context.Context, cfg Config) (func(), error) {
 		return nil, fmt.Errorf("create metric exporter: %w", err)
 	}
 
-	tracerProvider := trace.NewTracerProvider(
-		trace.WithBatcher(traceExporter),
-		trace.WithResource(res),
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(traceExporter),
+		sdktrace.WithResource(res),
 	)
 
 	meterProvider := metric.NewMeterProvider(
@@ -80,7 +81,9 @@ func Init(ctx context.Context, cfg Config) (func(), error) {
 	otel.SetMeterProvider(meterProvider)
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
-	handler := otelslog.NewHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{}))
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	otelHandler := otelslog.NewHandler(cfg.ServiceName)
+	handler := &fanoutHandler{json: jsonHandler, otel: otelHandler}
 	logger := slog.New(handler).With(
 		"service", cfg.ServiceName,
 		"phase", "unknown",
@@ -98,4 +101,51 @@ func Init(ctx context.Context, cfg Config) (func(), error) {
 			slog.Error("failed to shutdown meter provider", "error", err)
 		}
 	}, nil
+}
+
+type fanoutHandler struct {
+	json slog.Handler
+	otel slog.Handler
+}
+
+func (h *fanoutHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.json.Enabled(ctx, level) || h.otel.Enabled(ctx, level)
+}
+
+func (h *fanoutHandler) Handle(ctx context.Context, record slog.Record) error {
+	record = injectTraceID(ctx, record)
+	if err := h.json.Handle(ctx, record); err != nil {
+		return fmt.Errorf("json handler: %w", err)
+	}
+	if err := h.otel.Handle(ctx, record); err != nil {
+		return fmt.Errorf("otel handler: %w", err)
+	}
+	return nil
+}
+
+func (h *fanoutHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &fanoutHandler{
+		json: h.json.WithAttrs(attrs),
+		otel: h.otel.WithAttrs(attrs),
+	}
+}
+
+func (h *fanoutHandler) WithGroup(name string) slog.Handler {
+	return &fanoutHandler{
+		json: h.json.WithGroup(name),
+		otel: h.otel.WithGroup(name),
+	}
+}
+
+func injectTraceID(ctx context.Context, record slog.Record) slog.Record {
+	span := oteltrace.SpanFromContext(ctx)
+	if span == nil {
+		return record
+	}
+	spanCtx := span.SpanContext()
+	if !spanCtx.IsValid() {
+		return record
+	}
+	record.AddAttrs(slog.String("trace_id", spanCtx.TraceID().String()))
+	return record
 }

@@ -13,8 +13,8 @@ import (
 )
 
 type otlpCollector struct {
-	traceExports  atomic.Int64
-	metricExports atomic.Int64
+	traceExports  int64
+	metricExports int64
 }
 
 type traceService struct {
@@ -22,8 +22,11 @@ type traceService struct {
 	parent *otlpCollector
 }
 
-func (s *traceService) Export(ctx context.Context, req *collectortrace.ExportTraceServiceRequest) (*collectortrace.ExportTraceServiceResponse, error) {
-	s.parent.traceExports.Add(1)
+func (s *traceService) Export(
+	ctx context.Context,
+	req *collectortrace.ExportTraceServiceRequest,
+) (*collectortrace.ExportTraceServiceResponse, error) {
+	atomic.AddInt64(&s.parent.traceExports, 1)
 	return &collectortrace.ExportTraceServiceResponse{}, nil
 }
 
@@ -32,8 +35,11 @@ type metricsService struct {
 	parent *otlpCollector
 }
 
-func (s *metricsService) Export(ctx context.Context, req *collectormetrics.ExportMetricsServiceRequest) (*collectormetrics.ExportMetricsServiceResponse, error) {
-	s.parent.metricExports.Add(1)
+func (s *metricsService) Export(
+	ctx context.Context,
+	req *collectormetrics.ExportMetricsServiceRequest,
+) (*collectormetrics.ExportMetricsServiceResponse, error) {
+	atomic.AddInt64(&s.parent.metricExports, 1)
 	return &collectormetrics.ExportMetricsServiceResponse{}, nil
 }
 
@@ -76,10 +82,10 @@ func TestInitWithOTLPCollectorStub(t *testing.T) {
 
 	shutdown()
 
-	if collector.traceExports.Load() == 0 {
+	if atomic.LoadInt64(&collector.traceExports) == 0 {
 		t.Fatalf("expected trace exports to be recorded")
 	}
-	if collector.metricExports.Load() == 0 {
+	if atomic.LoadInt64(&collector.metricExports) == 0 {
 		t.Fatalf("expected metric exports to be recorded")
 	}
 }
