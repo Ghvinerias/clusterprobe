@@ -315,12 +315,9 @@ func renderStatusBadge(id string, status string) string {
 	if isTerminalStatus(status) {
 		return fmt.Sprintf(`<span class="badge %s">%s</span>`, class, status)
 	}
-	return fmt.Sprintf(
-		`<span class="badge %s" hx-get="/api/v1/chaos/experiments/%s?view=badge" hx-trigger="every 3s" hx-swap="outerHTML">%s</span>`,
-		class,
-		id,
-		status,
-	)
+	template := `<span class="badge %s" hx-get="/api/v1/chaos/experiments/%s?view=badge" ` +
+		`hx-trigger="every 3s" hx-swap="outerHTML">%s</span>`
+	return fmt.Sprintf(template, class, id, status)
 }
 
 func statusBadgeClass(status string) string {

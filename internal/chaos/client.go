@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -97,7 +97,7 @@ func (c *ChaosClient) Apply(ctx context.Context, spec ExperimentSpec) (string, e
 		"spec": spec.Spec,
 	}}
 
-	created, err := c.client.Resource(gvr).Namespace(namespace).Create(ctx, obj, v1.CreateOptions{})
+	created, err := c.client.Resource(gvr).Namespace(namespace).Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "create failed")
@@ -120,7 +120,7 @@ func (c *ChaosClient) Status(ctx context.Context, id string) (ExperimentStatus, 
 	}
 
 	for kind, gvr := range chaosGVRs {
-		obj, err := c.client.Resource(gvr).Namespace(c.namespace).Get(ctx, id, v1.GetOptions{})
+		obj, err := c.client.Resource(gvr).Namespace(c.namespace).Get(ctx, id, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			continue
 		}
@@ -153,7 +153,7 @@ func (c *ChaosClient) Delete(ctx context.Context, id string) error {
 	}
 
 	for _, gvr := range chaosGVRs {
-		err := c.client.Resource(gvr).Namespace(c.namespace).Delete(ctx, id, v1.DeleteOptions{})
+		err := c.client.Resource(gvr).Namespace(c.namespace).Delete(ctx, id, metav1.DeleteOptions{})
 		if errors.IsNotFound(err) {
 			continue
 		}
@@ -175,7 +175,7 @@ func (c *ChaosClient) List(ctx context.Context) ([]ExperimentStatus, error) {
 
 	var results []ExperimentStatus
 	for kind, gvr := range chaosGVRs {
-		list, err := c.client.Resource(gvr).Namespace(c.namespace).List(ctx, v1.ListOptions{})
+		list, err := c.client.Resource(gvr).Namespace(c.namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "list failed")

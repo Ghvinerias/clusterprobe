@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -66,7 +66,7 @@ func TestChaosClientListAndDelete(t *testing.T) {
 	_, err := client.Resource(chaosGVRs["PodChaos"]).Namespace("cluster-probe").Create(
 		context.Background(),
 		obj,
-		v1.CreateOptions{},
+		metav1.CreateOptions{},
 	)
 	if err != nil {
 		t.Fatalf("seed chaos: %v", err)
@@ -85,7 +85,7 @@ func TestChaosClientListAndDelete(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 
-	_, err = client.Resource(gvr).Namespace("cluster-probe").Get(context.Background(), "list-chaos", v1.GetOptions{})
+	_, err = client.Resource(gvr).Namespace("cluster-probe").Get(context.Background(), "list-chaos", metav1.GetOptions{})
 	if err == nil {
 		t.Fatalf("expected not found after delete")
 	}

@@ -420,7 +420,11 @@ func TestMetricsSnapshot(t *testing.T) {
 
 func TestChaosCreate(t *testing.T) {
 	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
 	}
@@ -441,7 +445,9 @@ func TestChaosCreate(t *testing.T) {
 		listFn:   func(ctx context.Context) ([]chaos.ExperimentStatus, error) { return nil, nil },
 	}
 
-	payload := []byte(`{"name":"exp","scenario":"s1","config":{"type":"pod","target":"app.kubernetes.io/component=api","duration":"5m"}}`)
+	payload := []byte(
+		`{"name":"exp","scenario":"s1","config":{"type":"pod","target":"app.kubernetes.io/component=api","duration":"5m"}}`,
+	)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chaos/experiments", bytes.NewReader(payload))
 	rec := httptest.NewRecorder()
 
@@ -455,7 +461,11 @@ func TestChaosCreate(t *testing.T) {
 func TestChaosList(t *testing.T) {
 	created := time.Now().UTC()
 	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
-	publisher := &mockPublisher{publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error { return nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
 	}
