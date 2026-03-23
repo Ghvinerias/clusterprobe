@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clusterprobe-loki
+  labels:
+    app.kubernetes.io/name: clusterprobe
+    app.kubernetes.io/component: loki
+    app.kubernetes.io/part-of: clusterprobe
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  serviceName: clusterprobe-loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clusterprobe
+      app.kubernetes.io/component: loki
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clusterprobe
+        app.kubernetes.io/component: loki
+        app.kubernetes.io/part-of: clusterprobe
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:2.9.6
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: data
+              mountPath: /var/loki
+      volumes:
+        - name: config
+          configMap:
+            name: clusterprobe-loki-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: clusterprobe-loki-data
