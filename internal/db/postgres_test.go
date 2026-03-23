@@ -18,7 +18,12 @@ func TestPostgresExecQuery(t *testing.T) {
 	client := &PostgresClient{pool: mock, tracer: otel.Tracer("test")}
 
 	mock.ExpectExec("INSERT INTO load_events").WithArgs("s", "{}").WillReturnResult(pgxmock.NewResult("INSERT", 1))
-	if _, err := client.Exec(context.Background(), "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)", "s", "{}"); err != nil {
+	if _, err := client.Exec(
+		context.Background(),
+		"INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)",
+		"s",
+		"{}",
+	); err != nil {
 		t.Fatalf("exec: %v", err)
 	}
 

@@ -223,5 +223,8 @@ func (c *RedisClient) Subscribe(ctx context.Context, channel string) (*redis.Pub
 
 // Close closes the client.
 func (c *RedisClient) Close() error {
-	return c.client.Close()
+	if err := c.client.Close(); err != nil {
+		return fmt.Errorf("redis close: %w", err)
+	}
+	return nil
 }

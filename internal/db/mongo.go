@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.opentelemetry.io/otel"
@@ -174,7 +173,12 @@ func (c *MongoClient) FindOne(ctx context.Context, collection string, filter any
 }
 
 // UpdateOne updates a single document.
-func (c *MongoClient) UpdateOne(ctx context.Context, collection string, filter any, update any) (*mongo.UpdateResult, error) {
+func (c *MongoClient) UpdateOne(
+	ctx context.Context,
+	collection string,
+	filter any,
+	update any,
+) (*mongo.UpdateResult, error) {
 	ctx, span := c.tracer.Start(ctx, "mongo.update_one")
 	defer span.End()
 
@@ -196,9 +200,8 @@ func (c *MongoClient) UpdateOne(ctx context.Context, collection string, filter a
 
 // Close disconnects the client.
 func (c *MongoClient) Close(ctx context.Context) error {
-	return c.client.Disconnect(ctx)
-}
-
-func buildMongoFilter(id string) bson.D {
-	return bson.D{{Key: "_id", Value: id}}
+	if err := c.client.Disconnect(ctx); err != nil {
+		return fmt.Errorf("mongo disconnect: %w", err)
+	}
+	return nil
 }

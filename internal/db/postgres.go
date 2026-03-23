@@ -102,7 +102,10 @@ func connectPostgresWithRetry(ctx context.Context, cfg *pgxpool.Config) (*pgxpoo
 
 // Ping verifies connectivity.
 func (c *PostgresClient) Ping(ctx context.Context) error {
-	return c.pool.Ping(ctx)
+	if err := c.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("postgres ping: %w", err)
+	}
+	return nil
 }
 
 // Exec executes a statement with an OTEL span.
