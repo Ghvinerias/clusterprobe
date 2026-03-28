@@ -23,7 +23,7 @@ spec:
       serviceAccountName: clusterprobe-api
       containers:
         - name: api
-          image: clusterprobe-api:latest
+          image: docker.io/slickg/clusterprobe-api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

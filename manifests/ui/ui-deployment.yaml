@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: ui
-          image: clusterprobe-ui:latest
+          image: docker.io/slickg/clusterprobe-ui:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

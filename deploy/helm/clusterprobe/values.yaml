@@ -9,7 +9,7 @@ global:
 api:
   enabled: true
   image:
-    repository: docker.io/clusterprobe/clusterprobe-api
+    repository: docker.io/slickg/clusterprobe-api
     tag: latest
   replicas: 2
   service:
@@ -29,7 +29,7 @@ api:
 worker:
   enabled: true
   image:
-    repository: docker.io/clusterprobe/clusterprobe-worker
+    repository: docker.io/slickg/clusterprobe-worker
     tag: latest
   replicas: 3
   service:
@@ -49,7 +49,7 @@ worker:
 ui:
   enabled: true
   image:
-    repository: docker.io/clusterprobe/clusterprobe-ui
+    repository: docker.io/slickg/clusterprobe-ui
     tag: latest
   replicas: 2
   service:
