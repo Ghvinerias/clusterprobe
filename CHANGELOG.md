@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Raised every `internal/` package above the 70% coverage threshold.
+- Repaired Helm and Kustomize validation, including opt-out of the KEDA
+  `ScaledObject` from the base deployment.
+- Updated deployment manifests and overlays to use the
+  `slickg/clusterprobe-*` image repositories.
+- Fixed workload lint findings and MongoDB test formatting.
+
 ## v0.1.0
 
 - Scaffolded Go module, shared config, and telemetry bootstrap.
