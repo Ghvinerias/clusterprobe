@@ -7,6 +7,7 @@
   `ScaledObject` from the base deployment.
 - Updated deployment manifests and overlays to use the
   `slickg/clusterprobe-*` image repositories.
+- Added explicit semver tags to manually dispatched release image builds.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

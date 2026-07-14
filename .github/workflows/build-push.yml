@@ -2,6 +2,11 @@ name: build-push
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Semver image tag (for example, v0.1.0)
+        required: true
+        default: v0.1.0
 
 env:
   REGISTRY: docker.io
@@ -38,6 +43,15 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_SECRET }}
 
+      - name: Validate release version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "version must be a semver tag prefixed with v" >&2
+            exit 1
+          fi
+
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
@@ -48,8 +62,9 @@ jobs:
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/clusterprobe-${{ matrix.service }}:latest
             ${{ env.DOCKERHUB_USERNAME }}/clusterprobe-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/clusterprobe-${{ matrix.service }}:${{ inputs.version }}
           build-args: |
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ inputs.version }}
             COMMIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: type=gha
