@@ -13,6 +13,7 @@ data:
   CP_RABBITMQ_URL: "amqp://{{ include "clusterprobe.componentName" (dict "root" . "component" "rabbitmq") }}:5672/"
   CP_OTEL_ENDPOINT: "{{- if .Values.observability.selfContained -}}{{ include "clusterprobe.componentName" (dict "root" . "component" "alloy") }}:4317{{- else -}}{{ .Values.observability.externalEndpoints.tempo }}{{- end -}}"
   CP_API_LISTEN_ADDR: {{ .Values.api.config.listenAddr | quote }}
+  CP_API_BASE_URL: {{ default (printf "http://%s:%v" (include "clusterprobe.componentName" (dict "root" . "component" "api")) .Values.api.service.port) .Values.ui.config.apiBaseURL | quote }}
   CP_UI_LISTEN_ADDR: {{ .Values.ui.config.listenAddr | quote }}
   CP_CHAOS_LISTEN_ADDR: {{ .Values.global.chaosListenAddr | quote }}
   CP_WORKER_CONCURRENCY: {{ .Values.worker.config.concurrency | quote }}

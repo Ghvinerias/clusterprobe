@@ -8,6 +8,9 @@
 - Updated deployment manifests and overlays to use the
   `slickg/clusterprobe-*` image repositories.
 - Added explicit semver tags to manually dispatched release image builds.
+- Fixed local Colima deployment issues: Docker target-arch builds, automatic
+  Postgres schema initialization, UI health/API wiring, Worker probe port, and
+  Alloy/Tempo Helm configuration.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

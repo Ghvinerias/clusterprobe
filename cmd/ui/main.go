@@ -80,6 +80,10 @@ func main() {
 	router.Use(middleware.OTelMiddleware(serviceName))
 	router.Use(middleware.Logging)
 
+	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 	router.Get("/", server.Root)
 	router.Get("/dashboard", server.Dashboard)
 	router.Get("/dashboard/stream", server.DashboardStream)

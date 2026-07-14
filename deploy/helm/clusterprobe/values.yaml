@@ -4,7 +4,7 @@ global:
   storageClass: longhorn
   secretName: ""
   environment: dev
-  chaosListenAddr: \":8082\"
+  chaosListenAddr: ":8080"
 
 api:
   enabled: true
@@ -64,7 +64,7 @@ ui:
       memory: 256Mi
   config:
     listenAddr: ":8081"
-    apiBaseURL: http://clusterprobe-api:8080
+    apiBaseURL: ""
     logLevel: info
 
 observability:

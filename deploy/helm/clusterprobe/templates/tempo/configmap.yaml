@@ -19,5 +19,5 @@ data:
       trace:
         backend: local
         local:
-          path: /tempo
+          path: /var/tempo
 {{- end }}

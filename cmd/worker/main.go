@@ -78,6 +78,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer postgresClient.Close()
+	if err := postgresClient.InitSchema(ctx); err != nil {
+		slog.Error("postgres schema init failed", "error", err)
+		os.Exit(1)
+	}
 
 	redisClient, err := newRedisClient(ctx, cfg.RedisDSN)
 	if err != nil {
