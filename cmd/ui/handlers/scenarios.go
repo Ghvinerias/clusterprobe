@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -121,6 +122,29 @@ func (s *Server) CreateScenario(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/scenarios?success=1", http.StatusSeeOther)
 }
 
+// ScenarioRow renders one live-updating scenario row partial.
+func (s *Server) ScenarioRow(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.scenarios.row")
+	defer span.End()
+	defer s.logRequest(r, "scenarios_row")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	scenario, err := s.api.GetScenario(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load scenario", http.StatusBadGateway)
+		return
+	}
+
+	if err := s.renderScenarioRow(w, buildScenarioView(scenario)); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 // StopScenario stops a scenario and returns a row partial.
 func (s *Server) StopScenario(w http.ResponseWriter, r *http.Request) {
 	ctx, span := s.newSpan(r.Context(), "ui.scenarios.stop")
@@ -139,13 +163,18 @@ func (s *Server) StopScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view := buildScenarioView(scenario)
+	if err := s.renderScenarioRow(w, buildScenarioView(scenario)); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) renderScenarioRow(w http.ResponseWriter, view ScenarioView) error {
 	tmpl, ok := s.templates["scenarios"]
 	if !ok {
-		http.Error(w, "template error", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("template not found: scenarios")
 	}
 	if err := tmpl.ExecuteTemplate(w, "scenario-row", view); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
+		return err
 	}
+	return nil
 }

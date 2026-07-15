@@ -1,12 +1,14 @@
 {{define "scenario-row"}}
-<tr id="scenario-{{.ID}}">
+<tr id="scenario-{{.ID}}" {{if not .Terminal}}hx-get="/scenarios/{{.ID}}/row" hx-trigger="every 2s" hx-swap="outerHTML"{{end}}>
   <td>{{.ID}}</td>
   <td>{{.Name}}</td>
   <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
   <td>{{.Profile.WorkloadType}}</td>
   <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
   <td>
-    <button class="btn" hx-post="/scenarios/{{.ID}}/stop" hx-target="#scenario-{{.ID}}" hx-swap="outerHTML">Stop</button>
+    {{if not .Terminal}}
+      <button class="btn" hx-post="/scenarios/{{.ID}}/stop" hx-target="#scenario-{{.ID}}" hx-swap="outerHTML">Stop</button>
+    {{end}}
   </td>
 </tr>
 {{end}}

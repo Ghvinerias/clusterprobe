@@ -64,6 +64,8 @@
   `load_events` cannot affect scenario state.
 - Added a repeatable local product smoke script for API, UI, scenario,
   metrics, and log-stream validation.
+- Added live-polling scenario table rows in the UI and hid stop actions for
+  terminal scenarios.
 
 ## v0.1.0
 

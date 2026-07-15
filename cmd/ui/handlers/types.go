@@ -11,6 +11,7 @@ import (
 // APIClient abstracts the backend API.
 type APIClient interface {
 	ListScenarios(ctx context.Context) ([]workload.ScenarioResponse, error)
+	GetScenario(ctx context.Context, id string) (workload.ScenarioResponse, error)
 	CreateScenario(ctx context.Context, req workload.ScenarioRequest) (workload.ScenarioResponse, error)
 	StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error)
 	ListExperiments(ctx context.Context) ([]workload.ChaosExperimentResponse, error)
@@ -44,6 +45,7 @@ type Banner struct {
 type ScenarioView struct {
 	workload.ScenarioResponse
 	StatusClass string
+	Terminal    bool
 }
 
 // ExperimentView wraps chaos experiment data for templates.

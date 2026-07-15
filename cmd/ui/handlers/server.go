@@ -177,9 +177,20 @@ func (s *Server) newSpan(ctx context.Context, name string) (context.Context, tra
 }
 
 func buildScenarioView(scenario workload.ScenarioResponse) ScenarioView {
-	return ScenarioView{ScenarioResponse: scenario, StatusClass: statusClass(scenario.Status)}
+	return ScenarioView{
+		ScenarioResponse: scenario,
+		StatusClass:      statusClass(scenario.Status),
+		Terminal:         isTerminalScenarioStatus(scenario.Status),
+	}
 }
 
 func buildExperimentView(exp workload.ChaosExperimentResponse) ExperimentView {
 	return ExperimentView{ChaosExperimentResponse: exp, StatusClass: statusClass(exp.Status)}
+}
+
+func isTerminalScenarioStatus(status string) bool {
+	lower := strings.ToLower(status)
+	return strings.Contains(lower, "complete") ||
+		strings.Contains(lower, "fail") ||
+		strings.Contains(lower, "stop")
 }

@@ -40,6 +40,20 @@ func (m *mockAPI) CreateScenario(ctx context.Context, req workload.ScenarioReque
 	}, nil
 }
 
+func (m *mockAPI) GetScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
+	for _, scenario := range m.scenarios {
+		if scenario.ID == id {
+			return scenario, nil
+		}
+	}
+	return workload.ScenarioResponse{
+		ID:        id,
+		Name:      "scenario",
+		Status:    "running",
+		CreatedAt: time.Now(),
+	}, nil
+}
+
 func (m *mockAPI) StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
 	return workload.ScenarioResponse{ID: id, Status: "stopped", CreatedAt: time.Now()}, nil
 }
@@ -154,6 +168,28 @@ func TestDashboardHandler(t *testing.T) {
 
 func TestScenariosHandler(t *testing.T) {
 	server := newTestServer(t)
+	server.api = &mockAPI{
+		scenarios: []workload.ScenarioResponse{
+			{
+				ID:        "s1",
+				Name:      "running",
+				Status:    "running",
+				CreatedAt: time.Now(),
+				Profile: workload.LoadProfile{
+					WorkloadType: workload.WorkloadTypeDBWrite,
+				},
+			},
+			{
+				ID:        "s2",
+				Name:      "completed",
+				Status:    "completed",
+				CreatedAt: time.Now(),
+				Profile: workload.LoadProfile{
+					WorkloadType: workload.WorkloadTypeDBRead,
+				},
+			},
+		},
+	}
 	req := httptest.NewRequest(http.MethodGet, "/scenarios", nil)
 	rec := httptest.NewRecorder()
 
@@ -165,6 +201,13 @@ func TestScenariosHandler(t *testing.T) {
 	}
 	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
 		t.Fatalf("expected html content type")
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `hx-get="/scenarios/s1/row"`) {
+		t.Fatalf("expected running scenario row to poll")
+	}
+	if strings.Contains(body, `hx-get="/scenarios/s2/row"`) {
+		t.Fatalf("expected completed scenario row not to poll")
 	}
 }
 
@@ -265,6 +308,39 @@ func TestDeleteChaosHandler(t *testing.T) {
 	}
 	if api.deleted != "e1" {
 		t.Fatalf("expected delete call for e1, got %q", api.deleted)
+	}
+}
+
+func TestScenarioRowHandler(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{
+		scenarios: []workload.ScenarioResponse{
+			{
+				ID:        "s1",
+				Name:      "scenario",
+				Status:    "running",
+				CreatedAt: time.Now(),
+				Profile: workload.LoadProfile{
+					WorkloadType: workload.WorkloadTypeDBWrite,
+				},
+			},
+		},
+	}
+	req := requestWithRouteParam(http.MethodGet, "/scenarios/s1/row", "id", "s1")
+	rec := httptest.NewRecorder()
+
+	server.ScenarioRow(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `hx-get="/scenarios/s1/row"`) {
+		t.Fatalf("expected self-refreshing scenario row")
+	}
+	if !strings.Contains(body, "running") {
+		t.Fatalf("expected running status")
 	}
 }
 
