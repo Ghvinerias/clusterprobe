@@ -34,6 +34,7 @@ Chaos: Chaos Mesh experiments triggered via API/UI
 - Chaos Mesh integrations and prebuilt experiments
 
 **Quick Start (Helm)**
+
 ```bash
 helm install clusterprobe ./deploy/helm/clusterprobe -n cluster-probe --create-namespace
 kubectl -n cluster-probe get pods
@@ -42,4 +43,4 @@ kubectl -n cluster-probe get pods
 **Docs**
 - Getting started: `docs/getting-started.md`
 - Helm values: `docs/helm-values.md`
-
+- Notifications: `docs/notifications.md`

@@ -31,6 +31,8 @@
   ScaledObject out of the base manifests.
 - Aligned Kustomize Alloy and Prometheus observability manifests with the
   Helm-validated telemetry flow.
+- Refreshed getting-started, Helm values, README, and notification docs to
+  match the current Helm, Kustomize, KEDA, and `chaos-ctrl` workflows.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

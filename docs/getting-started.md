@@ -1,59 +1,154 @@
 # ClusterProbe Getting Started
 
+ClusterProbe can run as a Helm release for local validation or as Kustomize overlays for GitOps-style deployments.
+
 ## Prerequisites
 
 - Kubernetes 1.28+
-- Longhorn storage class installed
-- nginx-ingress controller
-- ArgoCD (optional, for GitOps)
+- Helm 3.12+
+- `kubectl`
+- A default storage class for PVC-backed components
+- Chaos Mesh support if you enable real chaos experiments
+- ArgoCD only if you use the manifests in `deploy/argocd`
 
-## Quick Start with Helm
+For a local Colima/k3s cluster, use the `local-path` storage class and keep `chaos.enabled=false` unless you have confirmed Chaos Mesh works on the node.
+
+## Quick start with Helm
+
+Production-like install using the chart defaults:
 
 ```bash
-helm repo add clusterprobe https://ghvinerias.github.io/clusterprobe
-helm install clusterprobe clusterprobe/clusterprobe -n cluster-probe --create-namespace
+helm upgrade --install clusterprobe ./deploy/helm/clusterprobe \
+  -n cluster-probe \
+  --create-namespace
+
 kubectl -n cluster-probe get pods
 ```
 
-## Quick Start with Kustomize + ArgoCD
+Local Colima/k3s install:
 
 ```bash
-kubectl apply -f deploy/argocd/clusterprobe-self-contained.yaml
-kubectl -n argocd get applications
+helm upgrade --install clusterprobe ./deploy/helm/clusterprobe \
+  -n cluster-probe \
+  --create-namespace \
+  --set global.storageClass=local-path \
+  --set api.replicas=1 \
+  --set worker.replicas=1 \
+  --set ui.replicas=1 \
+  --set chaos.enabled=false
+
+kubectl -n cluster-probe rollout status deploy/clusterprobe-clusterprobe-api
+kubectl -n cluster-probe rollout status deploy/clusterprobe-clusterprobe-ui
+kubectl -n cluster-probe rollout status deploy/clusterprobe-clusterprobe-worker
 ```
 
-To use an existing observability stack, apply `deploy/argocd/clusterprobe-existing-stack.yaml` and update the Alloy endpoints in `deploy/kustomize/overlays/existing-stack/alloy-config.river`.
+## Open the UI and API
 
-## Configuration Reference
+```bash
+kubectl -n cluster-probe port-forward svc/clusterprobe-clusterprobe-ui 8081:8081
+kubectl -n cluster-probe port-forward svc/clusterprobe-clusterprobe-api 8080:8080
+```
 
-See `docs/helm-values.md` for all Helm values.
+- UI: `http://localhost:8081`
+- API health: `http://localhost:8080/healthz`
+- API status: `http://localhost:8080/api/v1/status`
 
-## First Load Test Walkthrough
+## First workload scenario
 
-1. Port-forward the UI service:
-   ```bash
-   kubectl -n cluster-probe port-forward svc/clusterprobe-ui 8081:8081
-   ```
-2. Open `http://localhost:8081` and create a new scenario.
-3. Watch Grafana dashboards (self-contained overlay) for ops/sec, error rate, and latency.
-4. Trigger a chaos experiment from the UI to validate resilience.
+Create a short mixed workload through the API:
+
+```bash
+curl -sS -X POST http://localhost:8080/api/v1/scenarios \
+  -H 'content-type: application/json' \
+  -d '{
+    "name": "smoke-mixed",
+    "description": "local smoke workload",
+    "type": "mixed",
+    "duration_seconds": 15,
+    "parallelism": 2
+  }'
+```
+
+Then check:
+
+```bash
+curl -sS http://localhost:8080/api/v1/scenarios
+curl -sS http://localhost:8080/api/v1/metrics/snapshot
+```
+
+The UI scenarios page should show the scenario moving through `running` and then `completed` after the Worker consumes it from RabbitMQ.
+
+## Chaos experiments
+
+The API and UI can manage Chaos Mesh experiment manifests. `chaos-ctrl` provides the same control path from the command line:
+
+```bash
+go run ./cmd/chaos-ctrl version
+go run ./cmd/chaos-ctrl list --namespace cluster-probe
+go run ./cmd/chaos-ctrl apply --namespace cluster-probe -f manifests/chaos-mesh/experiments/pod-kill-worker.yaml
+go run ./cmd/chaos-ctrl status --namespace cluster-probe pod-kill-worker
+go run ./cmd/chaos-ctrl delete --namespace cluster-probe pod-kill-worker
+```
+
+Only run these commands on clusters where Chaos Mesh CRDs and controllers are installed and permitted to inject the selected failure mode.
+
+## Kustomize overlays
+
+The overlays reference shared manifests outside the overlay directory, so render them with Kustomize load restrictions disabled:
+
+```bash
+kubectl kustomize deploy/kustomize/overlays/self-contained --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
+```
+
+Use the existing-stack overlay when Prometheus, Loki, and Tempo already exist:
+
+```bash
+kubectl kustomize deploy/kustomize/overlays/existing-stack --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
+```
+
+For Worker autoscaling with KEDA, apply the opt-in overlay after KEDA CRDs are installed:
+
+```bash
+kubectl kustomize deploy/kustomize/overlays/keda-worker --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
+```
+
+## Configuration reference
+
+- Helm values: `docs/helm-values.md`
+- Notifications: `docs/notifications.md`
 
 ## Observability
 
-- Metrics: open Grafana and use the Overview and Workloads dashboards.
-- Logs: use the Loki datasource and filter by `service` or `pod` labels.
-- Traces: open the Tempo datasource, filter by `service` and `trace_id`.
+- Metrics enter Prometheus through Alloy OTLP and remote write.
+- Logs are collected by Alloy and sent to Loki with Kubernetes labels.
+- Traces are exported over OTLP/gRPC to Tempo.
+- Grafana dashboards are included for overview, workloads, chaos, and traces.
 
-## CI/CD Notes
+## CI/CD notes
 
-The `build-push` workflow requires Bitwarden secrets for Docker Hub:
+The manual `build-push` workflow publishes multi-architecture images for `api`, `worker`, `ui`, and `chaos-ctrl`.
 
-1. Add `BW_ACCESS_TOKEN` to GitHub Actions secrets.
-2. Replace the two UUID placeholders in `.github/workflows/build-push.yml` with your Bitwarden secret IDs for `DOCKERHUB_USERNAME` and `DOCKERHUB_SECRET`.
-3. Images publish to `docker.io/{username}/clusterprobe-{service}`.
+Required GitHub Actions secret:
+
+- `BW_ACCESS_TOKEN`: Bitwarden access token used by `bitwarden/sm-action`.
+
+The workflow currently resolves Docker Hub credentials from the Bitwarden secret IDs configured in `.github/workflows/build-push.yml` and publishes:
+
+- `docker.io/<dockerhub-user>/clusterprobe-api:<tag>`
+- `docker.io/<dockerhub-user>/clusterprobe-worker:<tag>`
+- `docker.io/<dockerhub-user>/clusterprobe-ui:<tag>`
+- `docker.io/<dockerhub-user>/clusterprobe-chaos-ctrl:<tag>`
 
 ## Teardown
 
+Helm:
+
 ```bash
-kubectl delete -k deploy/kustomize/overlays/self-contained
+helm uninstall clusterprobe -n cluster-probe
+```
+
+Kustomize:
+
+```bash
+kubectl kustomize deploy/kustomize/overlays/self-contained --load-restrictor=LoadRestrictionsNone | kubectl delete -f -
 ```

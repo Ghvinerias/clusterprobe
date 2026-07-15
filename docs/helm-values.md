@@ -11,14 +11,14 @@ This document lists every key in `deploy/helm/clusterprobe/values.yaml`, with ty
 | `global.storageClass` | string | `longhorn` | Storage class for PVCs. |
 | `global.secretName` | string | `""` | Optional secret name to mount as `envFrom` for app services. |
 | `global.environment` | string | `dev` | Environment label injected into service env. |
-| `global.chaosListenAddr` | string | `:8082` | Placeholder listen address for chaos endpoints. |
+| `global.chaosListenAddr` | string | `:8080` | Listen address used by services that expose chaos-related endpoints. |
 
 ## API
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `api.enabled` | bool | `true` | Deploy the API service. |
-| `api.image.repository` | string | `docker.io/clusterprobe/clusterprobe-api` | API container image repository. |
+| `api.image.repository` | string | `docker.io/slickg/clusterprobe-api` | API container image repository. |
 | `api.image.tag` | string | `latest` | API image tag. |
 | `api.replicas` | int | `2` | API replicas. |
 | `api.service.type` | string | `ClusterIP` | API service type. |
@@ -35,7 +35,7 @@ This document lists every key in `deploy/helm/clusterprobe/values.yaml`, with ty
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `worker.enabled` | bool | `true` | Deploy the worker service. |
-| `worker.image.repository` | string | `docker.io/clusterprobe/clusterprobe-worker` | Worker image repository. |
+| `worker.image.repository` | string | `docker.io/slickg/clusterprobe-worker` | Worker image repository. |
 | `worker.image.tag` | string | `latest` | Worker image tag. |
 | `worker.replicas` | int | `3` | Worker replicas. |
 | `worker.service.type` | string | `ClusterIP` | Worker service type. |
@@ -62,7 +62,7 @@ not include KEDA resources.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `ui.enabled` | bool | `true` | Deploy the UI service. |
-| `ui.image.repository` | string | `docker.io/clusterprobe/clusterprobe-ui` | UI image repository. |
+| `ui.image.repository` | string | `docker.io/slickg/clusterprobe-ui` | UI image repository. |
 | `ui.image.tag` | string | `latest` | UI image tag. |
 | `ui.replicas` | int | `2` | UI replicas. |
 | `ui.service.type` | string | `ClusterIP` | UI service type. |
@@ -72,7 +72,7 @@ not include KEDA resources.
 | `ui.resources.limits.cpu` | string | `300m` | UI CPU limit. |
 | `ui.resources.limits.memory` | string | `256Mi` | UI memory limit. |
 | `ui.config.listenAddr` | string | `:8081` | UI listen address. |
-| `ui.config.apiBaseURL` | string | `http://clusterprobe-api:8080` | API base URL the UI calls. |
+| `ui.config.apiBaseURL` | string | `""` | API base URL the UI calls. Empty defaults to the release API service URL rendered by the chart. |
 | `ui.config.logLevel` | string | `info` | UI log level. |
 
 ## Observability
