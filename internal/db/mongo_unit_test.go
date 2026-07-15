@@ -84,6 +84,11 @@ func TestMongoClientOperationsErrorPaths(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("delete one", func(t *testing.T) {
+		_, err := client.DeleteOne(context.Background(), "payloads", map[string]any{})
+		require.Error(t, err)
+	})
+
 	t.Run("close", func(t *testing.T) {
 		require.NoError(t, client.Close(context.Background()))
 	})

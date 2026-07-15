@@ -315,6 +315,20 @@ func (m *mongoAdapter) Find(ctx context.Context, collection string, filter any) 
 	return mongoCursor{cursor: cursor}, nil
 }
 
+func (m *mongoAdapter) UpdateOne(ctx context.Context, collection string, filter any, update any) error {
+	if _, err := m.client.UpdateOne(ctx, collection, filter, update); err != nil {
+		return fmt.Errorf("mongo update: %w", err)
+	}
+	return nil
+}
+
+func (m *mongoAdapter) DeleteOne(ctx context.Context, collection string, filter any) error {
+	if _, err := m.client.DeleteOne(ctx, collection, filter); err != nil {
+		return fmt.Errorf("mongo delete: %w", err)
+	}
+	return nil
+}
+
 type mongoCursor struct {
 	cursor interface {
 		Next(ctx context.Context) bool

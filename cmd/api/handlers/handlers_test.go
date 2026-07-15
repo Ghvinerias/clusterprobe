@@ -83,6 +83,8 @@ func (m *mockChaosEngine) List(ctx context.Context) ([]chaos.ExperimentStatus, e
 type mockMongo struct {
 	insertFn func(ctx context.Context, collection string, doc any) error
 	findFn   func(ctx context.Context, collection string, filter any) (MongoCursor, error)
+	updateFn func(ctx context.Context, collection string, filter any, update any) error
+	deleteFn func(ctx context.Context, collection string, filter any) error
 }
 
 func (m *mockMongo) InsertOne(ctx context.Context, collection string, doc any) error {
@@ -91,6 +93,20 @@ func (m *mockMongo) InsertOne(ctx context.Context, collection string, doc any) e
 
 func (m *mockMongo) Find(ctx context.Context, collection string, filter any) (MongoCursor, error) {
 	return m.findFn(ctx, collection, filter)
+}
+
+func (m *mockMongo) UpdateOne(ctx context.Context, collection string, filter any, update any) error {
+	if m.updateFn == nil {
+		return nil
+	}
+	return m.updateFn(ctx, collection, filter, update)
+}
+
+func (m *mockMongo) DeleteOne(ctx context.Context, collection string, filter any) error {
+	if m.deleteFn == nil {
+		return nil
+	}
+	return m.deleteFn(ctx, collection, filter)
 }
 
 type mockCursor struct {
@@ -583,6 +599,103 @@ func TestChaosList(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestChaosListMergesLiveStatus(t *testing.T) {
+	created := time.Now().UTC()
+	var updated bool
+	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+	mongo := &mockMongo{
+		insertFn: func(ctx context.Context, collection string, doc any) error { return nil },
+		findFn: func(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+			record := chaosRecord{
+				ID:        "id",
+				Name:      "exp",
+				Scenario:  "s1",
+				Status:    "pending",
+				CreatedAt: created,
+			}
+			return &mockCursor{rows: []any{record}}, nil
+		},
+		updateFn: func(ctx context.Context, collection string, filter any, update any) error {
+			updated = true
+			return nil
+		},
+	}
+	chaosEngine := &mockChaosEngine{
+		applyFn: func(ctx context.Context, spec chaos.ExperimentSpec) (string, error) {
+			return "id", nil
+		},
+		statusFn: func(ctx context.Context, id string) (chaos.ExperimentStatus, error) {
+			return chaos.ExperimentStatus{ID: id, Name: id, Phase: "Running"}, nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+		listFn: func(ctx context.Context) ([]chaos.ExperimentStatus, error) {
+			return []chaos.ExperimentStatus{{ID: "id", Name: "id", Phase: "Running"}}, nil
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/chaos/experiments", nil)
+	rec := httptest.NewRecorder()
+
+	buildTestServer(store, redis, mongo, publisher, chaosEngine).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"status": "Running"`) {
+		t.Fatalf("expected live status, got %s", rec.Body.String())
+	}
+	if !updated {
+		t.Fatalf("expected persisted live status")
+	}
+}
+
+func TestChaosDeleteRemovesRecord(t *testing.T) {
+	var deleted bool
+	store := &mockPostgres{execFn: func(ctx context.Context, sql string, args ...any) error { return nil }}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+	mongo := &mockMongo{
+		insertFn: func(ctx context.Context, collection string, doc any) error { return nil },
+		findFn: func(ctx context.Context, collection string, filter any) (MongoCursor, error) {
+			return &mockCursor{}, nil
+		},
+		deleteFn: func(ctx context.Context, collection string, filter any) error {
+			deleted = true
+			return nil
+		},
+	}
+	chaosEngine := defaultChaosEngine()
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/chaos/experiments/id", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("id", "id")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	rec := httptest.NewRecorder()
+
+	buildTestServer(store, redis, mongo, publisher, chaosEngine).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", rec.Code)
+	}
+	if !deleted {
+		t.Fatalf("expected mongo record delete")
 	}
 }
 

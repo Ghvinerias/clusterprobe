@@ -73,6 +73,8 @@ func (h *ChaosHandler) CreateExperiment(w http.ResponseWriter, r *http.Request) 
 
 // ListExperiments handles GET /api/v1/chaos/experiments.
 func (h *ChaosHandler) ListExperiments(w http.ResponseWriter, r *http.Request) {
+	liveStatuses := h.liveStatusByID(r.Context())
+
 	cursor, err := h.store.Find(r.Context(), chaosCollection, bson.M{})
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "list experiments")
@@ -88,6 +90,10 @@ func (h *ChaosHandler) ListExperiments(w http.ResponseWriter, r *http.Request) {
 		if err := cursor.Decode(&record); err != nil {
 			errorResponse(w, http.StatusInternalServerError, "decode experiment")
 			return
+		}
+		if status, ok := liveStatuses[record.ID]; ok {
+			record.Status = status.Phase
+			h.persistChaosStatus(r.Context(), record.ID, status.Phase)
 		}
 		responses = append(responses, record.toResponse())
 	}
@@ -126,6 +132,9 @@ func (h *ChaosHandler) GetExperiment(w http.ResponseWriter, r *http.Request) {
 		response.Scenario = record.Scenario
 		response.Config = record.Config
 		response.CreatedAt = record.CreatedAt
+		if response.Status != "" && response.Status != record.Status {
+			h.persistChaosStatus(r.Context(), id, response.Status)
+		}
 	}
 
 	if r.URL.Query().Get("view") == "badge" {
@@ -154,8 +163,36 @@ func (h *ChaosHandler) DeleteExperiment(w http.ResponseWriter, r *http.Request) 
 		errorResponse(w, http.StatusBadGateway, "delete experiment")
 		return
 	}
+	if err := h.store.DeleteOne(r.Context(), chaosCollection, bson.M{"_id": id}); err != nil {
+		errorResponse(w, http.StatusInternalServerError, "delete experiment record")
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ChaosHandler) liveStatusByID(ctx context.Context) map[string]chaos.ExperimentStatus {
+	statuses, err := h.client.List(ctx)
+	if err != nil {
+		return nil
+	}
+	byID := make(map[string]chaos.ExperimentStatus, len(statuses))
+	for _, status := range statuses {
+		if status.ID != "" {
+			byID[status.ID] = status
+		}
+		if status.Name != "" {
+			byID[status.Name] = status
+		}
+	}
+	return byID
+}
+
+func (h *ChaosHandler) persistChaosStatus(ctx context.Context, id string, status string) {
+	if status == "" {
+		return
+	}
+	_ = h.store.UpdateOne(ctx, chaosCollection, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
 }
 
 func (h *ChaosHandler) findRecord(ctx context.Context, id string) (chaosRecord, bool) {

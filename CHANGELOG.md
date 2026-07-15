@@ -66,6 +66,8 @@
   metrics, and log-stream validation.
 - Added live-polling scenario table rows in the UI and hid stop actions for
   terminal scenarios.
+- Synchronized Chaos Mesh live status back into stored experiment metadata and
+  removed Mongo records after successful experiment deletion.
 
 ## v0.1.0
 

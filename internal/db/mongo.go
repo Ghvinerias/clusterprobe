@@ -198,6 +198,27 @@ func (c *MongoClient) UpdateOne(
 	return result, nil
 }
 
+// DeleteOne deletes a single document.
+func (c *MongoClient) DeleteOne(ctx context.Context, collection string, filter any) (*mongo.DeleteResult, error) {
+	ctx, span := c.tracer.Start(ctx, "mongo.delete_one")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("db.system", mongoDriverName),
+		attribute.String("db.name", c.database),
+		attribute.String("db.mongodb.collection", collection),
+	)
+
+	result, err := c.Collection(collection).DeleteOne(ctx, filter)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete one failed")
+		return nil, fmt.Errorf("mongo delete one: %w", err)
+	}
+
+	return result, nil
+}
+
 // Close disconnects the client.
 func (c *MongoClient) Close(ctx context.Context) error {
 	if err := c.client.Disconnect(ctx); err != nil {

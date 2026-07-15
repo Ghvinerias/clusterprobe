@@ -59,6 +59,8 @@ type MongoCursor interface {
 type MongoStore interface {
 	InsertOne(ctx context.Context, collection string, doc any) error
 	Find(ctx context.Context, collection string, filter any) (MongoCursor, error)
+	UpdateOne(ctx context.Context, collection string, filter any, update any) error
+	DeleteOne(ctx context.Context, collection string, filter any) error
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) error {

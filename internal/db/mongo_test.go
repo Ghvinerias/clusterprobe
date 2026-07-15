@@ -61,4 +61,8 @@ func TestMongoClientIntegration(t *testing.T) {
 	if err := cursor.Close(ctx); err != nil {
 		t.Fatalf("close cursor: %v", err)
 	}
+
+	if _, err := client.DeleteOne(ctx, "payloads", bson.M{"_id": "1"}); err != nil {
+		t.Fatalf("delete one: %v", err)
+	}
 }
