@@ -15,6 +15,8 @@ type APIClient interface {
 	StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error)
 	ListExperiments(ctx context.Context) ([]workload.ChaosExperimentResponse, error)
 	CreateExperiment(ctx context.Context, req workload.ChaosExperimentRequest) (workload.ChaosExperimentResponse, error)
+	GetExperiment(ctx context.Context, id string) (workload.ChaosExperimentResponse, error)
+	DeleteExperiment(ctx context.Context, id string) error
 	LogsStream(ctx context.Context) (io.ReadCloser, error)
 }
 
@@ -77,6 +79,15 @@ type FormData struct {
 	Active       string
 	Title        string
 	Now          time.Time
+	ID           string
+	ExperimentID string
+	Status       string
+	StatusClass  string
+}
+
+// ExperimentStatusData renders a chaos experiment status badge.
+type ExperimentStatusData struct {
+	ID           string
 	ExperimentID string
 	Status       string
 	StatusClass  string

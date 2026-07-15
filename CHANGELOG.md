@@ -33,6 +33,8 @@
   Helm-validated telemetry flow.
 - Refreshed getting-started, Helm values, README, and notification docs to
   match the current Helm, Kustomize, KEDA, and `chaos-ctrl` workflows.
+- Completed the chaos UI control loop with UI-local status polling, delete
+  actions, broader experiment type options, and handler coverage.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

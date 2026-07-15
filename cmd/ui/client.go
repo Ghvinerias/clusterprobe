@@ -76,6 +76,23 @@ func (c *apiClient) CreateExperiment(
 	return out, nil
 }
 
+func (c *apiClient) GetExperiment(ctx context.Context, id string) (workload.ChaosExperimentResponse, error) {
+	var out workload.ChaosExperimentResponse
+	path := fmt.Sprintf("/api/v1/chaos/experiments/%s", id)
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return workload.ChaosExperimentResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *apiClient) DeleteExperiment(ctx context.Context, id string) error {
+	path := fmt.Sprintf("/api/v1/chaos/experiments/%s", id)
+	if err := c.doJSON(ctx, http.MethodDelete, path, nil, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *apiClient) LogsStream(ctx context.Context) (io.ReadCloser, error) {
 	url := c.baseURL + "/api/v1/logs/stream"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

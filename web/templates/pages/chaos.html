@@ -13,13 +13,14 @@
         <th>Scenario</th>
         <th>Status</th>
         <th>Created</th>
+        <th></th>
       </tr>
     </thead>
     <tbody id="chaos-table">
       {{range .Experiments}}
         {{template "experiment-row" .}}
       {{else}}
-        <tr><td colspan="5">No experiments found.</td></tr>
+        <tr><td colspan="6">No experiments found.</td></tr>
       {{end}}
     </tbody>
   </table>

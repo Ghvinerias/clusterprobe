@@ -3,7 +3,10 @@
   <td>{{.ID}}</td>
   <td>{{.Name}}</td>
   <td>{{.Scenario}}</td>
-  <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
+  <td>{{template "experiment-status" .}}</td>
   <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+  <td>
+    <button class="btn" hx-delete="/chaos/{{.ID}}" hx-target="#experiment-{{.ID}}" hx-swap="outerHTML">Delete</button>
+  </td>
 </tr>
 {{end}}

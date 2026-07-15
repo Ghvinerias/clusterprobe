@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/Ghvinerias/clusterprobe/internal/workload"
 	"github.com/Ghvinerias/clusterprobe/web"
 )
@@ -21,6 +23,7 @@ type mockAPI struct {
 	scenarios   []workload.ScenarioResponse
 	experiments []workload.ChaosExperimentResponse
 	logStream   io.ReadCloser
+	deleted     string
 }
 
 func (m *mockAPI) ListScenarios(ctx context.Context) ([]workload.ScenarioResponse, error) {
@@ -56,6 +59,21 @@ func (m *mockAPI) CreateExperiment(
 		Status:    "queued",
 		CreatedAt: time.Now(),
 	}, nil
+}
+
+func (m *mockAPI) GetExperiment(ctx context.Context, id string) (workload.ChaosExperimentResponse, error) {
+	return workload.ChaosExperimentResponse{
+		ID:        id,
+		Name:      "pod-kill",
+		Scenario:  "s1",
+		Status:    "running",
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+func (m *mockAPI) DeleteExperiment(ctx context.Context, id string) error {
+	m.deleted = id
+	return nil
 }
 
 func (m *mockAPI) LogsStream(ctx context.Context) (io.ReadCloser, error) {
@@ -168,6 +186,17 @@ func TestScenarioNewHandler(t *testing.T) {
 
 func TestChaosHandler(t *testing.T) {
 	server := newTestServer(t)
+	server.api = &mockAPI{
+		experiments: []workload.ChaosExperimentResponse{
+			{
+				ID:        "e1",
+				Name:      "pod-kill",
+				Scenario:  "s1",
+				Status:    "running",
+				CreatedAt: time.Now(),
+			},
+		},
+	}
 	req := httptest.NewRequest(http.MethodGet, "/chaos", nil)
 	rec := httptest.NewRecorder()
 
@@ -179,6 +208,9 @@ func TestChaosHandler(t *testing.T) {
 	}
 	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
 		t.Fatalf("expected html content type")
+	}
+	if !strings.Contains(rec.Body.String(), `hx-get="/chaos/e1/status"`) {
+		t.Fatalf("expected UI status route in chaos table")
 	}
 }
 
@@ -196,6 +228,51 @@ func TestChaosNewHandler(t *testing.T) {
 	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
 		t.Fatalf("expected html content type")
 	}
+}
+
+func TestChaosStatusHandler(t *testing.T) {
+	server := newTestServer(t)
+	req := requestWithRouteParam(http.MethodGet, "/chaos/e1/status", "id", "e1")
+	rec := httptest.NewRecorder()
+
+	server.ChaosStatus(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `hx-get="/chaos/e1/status"`) {
+		t.Fatalf("expected self-refreshing status badge")
+	}
+	if !strings.Contains(body, "running") {
+		t.Fatalf("expected running status")
+	}
+}
+
+func TestDeleteChaosHandler(t *testing.T) {
+	api := &mockAPI{}
+	server := newTestServer(t)
+	server.api = api
+	req := requestWithRouteParam(http.MethodDelete, "/chaos/e1", "id", "e1")
+	rec := httptest.NewRecorder()
+
+	server.DeleteChaos(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	if api.deleted != "e1" {
+		t.Fatalf("expected delete call for e1, got %q", api.deleted)
+	}
+}
+
+func requestWithRouteParam(method string, target string, key string, value string) *http.Request {
+	req := httptest.NewRequest(method, target, nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add(key, value)
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
 }
 
 func TestLogsHandler(t *testing.T) {

@@ -19,14 +19,16 @@
         <option value="pod">Pod</option>
         <option value="network">Network</option>
         <option value="io">IO</option>
+        <option value="stress">Stress</option>
+        <option value="time">Time</option>
       </select>
     </div>
     <div class="form-field">
       <label for="target">Target Selector</label>
-      <input id="target" name="target" placeholder="app=clusterprobe-api" required>
+      <input id="target" name="target" placeholder="app.kubernetes.io/component=worker" required>
     </div>
     <div class="form-field">
-      <label for="duration">Duration (seconds)</label>
+      <label for="duration">Duration</label>
       <input id="duration" name="duration" placeholder="3m" required>
     </div>
     <div class="form-field">
@@ -37,7 +39,7 @@
   </form>
 </section>
 
-{{if .ExperimentID}}
+{{if .ID}}
 <section class="card">
   <div class="header">
     <h3>Experiment Status</h3>

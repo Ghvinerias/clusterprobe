@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/Ghvinerias/clusterprobe/internal/workload"
@@ -53,6 +54,58 @@ func (s *Server) NewChaos(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ChaosStatus renders a live status badge for one chaos experiment.
+func (s *Server) ChaosStatus(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.chaos.status")
+	defer span.End()
+	defer s.logRequest(r, "chaos_status")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	experiment, err := s.api.GetExperiment(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load experiment", http.StatusBadGateway)
+		return
+	}
+
+	tmpl, ok := s.templates["chaos"]
+	if !ok {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	data := ExperimentStatusData{
+		ID:           experiment.ID,
+		ExperimentID: experiment.ID,
+		Status:       experiment.Status,
+		StatusClass:  statusClass(experiment.Status),
+	}
+	if err := tmpl.ExecuteTemplate(w, "experiment-status", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// DeleteChaos deletes a chaos experiment and removes its table row.
+func (s *Server) DeleteChaos(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.chaos.delete")
+	defer span.End()
+	defer s.logRequest(r, "chaos_delete")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+	if err := s.api.DeleteExperiment(ctx, id); err != nil {
+		http.Error(w, "failed to delete experiment", http.StatusBadGateway)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 // CreateChaos submits a chaos experiment to the API.
 func (s *Server) CreateChaos(w http.ResponseWriter, r *http.Request) {
 	ctx, span := s.newSpan(r.Context(), "ui.chaos.create")
@@ -85,6 +138,7 @@ func (s *Server) CreateChaos(w http.ResponseWriter, r *http.Request) {
 		Active:       "chaos",
 		Title:        "New Chaos Experiment | ClusterProbe",
 		Now:          time.Now(),
+		ID:           resp.ID,
 		ExperimentID: resp.ID,
 		Status:       resp.Status,
 		StatusClass:  statusClass(resp.Status),
