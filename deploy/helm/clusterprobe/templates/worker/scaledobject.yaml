@@ -1,4 +1,6 @@
-{{- if and .Values.worker.enabled .Values.worker.autoscaling.keda.enabled }}
+{{- $autoscaling := default dict .Values.worker.autoscaling }}
+{{- $keda := default dict $autoscaling.keda }}
+{{- if and .Values.worker.enabled (default false $keda.enabled) }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -9,13 +11,13 @@ metadata:
 spec:
   scaleTargetRef:
     name: {{ include "clusterprobe.componentName" (dict "root" . "component" "worker") }}
-  minReplicaCount: {{ .Values.worker.autoscaling.keda.minReplicaCount }}
-  maxReplicaCount: {{ .Values.worker.autoscaling.keda.maxReplicaCount }}
-  pollingInterval: {{ .Values.worker.autoscaling.keda.pollingInterval }}
-  cooldownPeriod: {{ .Values.worker.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ default 1 $keda.minReplicaCount }}
+  maxReplicaCount: {{ default 10 $keda.maxReplicaCount }}
+  pollingInterval: {{ default 30 $keda.pollingInterval }}
+  cooldownPeriod: {{ default 300 $keda.cooldownPeriod }}
   triggers:
     - type: rabbitmq
       metadata:
-        queueName: {{ .Values.worker.autoscaling.keda.queueName | quote }}
+        queueName: {{ default "workload.high" $keda.queueName | quote }}
         hostFromEnv: CP_RABBITMQ_URL
 {{- end }}

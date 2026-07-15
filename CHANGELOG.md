@@ -37,6 +37,8 @@
   actions, broader experiment type options, and handler coverage.
 - Expanded the Chaos Mesh experiment library with memory pressure, Postgres
   packet loss, and Worker/RabbitMQ partition cases plus an experiment matrix.
+- Made the Helm KEDA `ScaledObject` template safe for older releases that do
+  not yet have `worker.autoscaling.keda` values.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0
