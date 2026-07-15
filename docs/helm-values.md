@@ -46,6 +46,16 @@ This document lists every key in `deploy/helm/clusterprobe/values.yaml`, with ty
 | `worker.resources.limits.memory` | string | `512Mi` | Worker memory limit. |
 | `worker.config.concurrency` | int | `10` | Worker goroutine concurrency. |
 | `worker.config.logLevel` | string | `info` | Worker log level. |
+| `worker.autoscaling.keda.enabled` | bool | `false` | Create a KEDA `ScaledObject` for RabbitMQ queue-based Worker autoscaling. Requires KEDA CRDs in the target cluster. |
+| `worker.autoscaling.keda.minReplicaCount` | int | `1` | Minimum Worker replicas when KEDA autoscaling is enabled. |
+| `worker.autoscaling.keda.maxReplicaCount` | int | `10` | Maximum Worker replicas when KEDA autoscaling is enabled. |
+| `worker.autoscaling.keda.pollingInterval` | int | `30` | KEDA polling interval in seconds. |
+| `worker.autoscaling.keda.cooldownPeriod` | int | `300` | KEDA cooldown period in seconds. |
+| `worker.autoscaling.keda.queueName` | string | `workload.high` | RabbitMQ queue used by the KEDA trigger. |
+
+For Kustomize users, the equivalent opt-in path is
+`deploy/kustomize/overlays/keda-worker`. The base Kustomize deployment does
+not include KEDA resources.
 
 ## UI
 

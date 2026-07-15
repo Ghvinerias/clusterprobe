@@ -45,6 +45,14 @@ worker:
   config:
     concurrency: 10
     logLevel: info
+  autoscaling:
+    keda:
+      enabled: false
+      minReplicaCount: 1
+      maxReplicaCount: 10
+      pollingInterval: 30
+      cooldownPeriod: 300
+      queueName: workload.high
 
 ui:
   enabled: true

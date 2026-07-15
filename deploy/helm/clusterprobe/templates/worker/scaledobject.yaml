@@ -1,0 +1,21 @@
+{{- if and .Values.worker.enabled .Values.worker.autoscaling.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "clusterprobe.componentName" (dict "root" . "component" "worker") }}
+  namespace: {{ include "clusterprobe.namespace" . }}
+  labels:
+    {{- include "clusterprobe.componentLabels" (dict "root" . "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "clusterprobe.componentName" (dict "root" . "component" "worker") }}
+  minReplicaCount: {{ .Values.worker.autoscaling.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.worker.autoscaling.keda.maxReplicaCount }}
+  pollingInterval: {{ .Values.worker.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.worker.autoscaling.keda.cooldownPeriod }}
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: {{ .Values.worker.autoscaling.keda.queueName | quote }}
+        hostFromEnv: CP_RABBITMQ_URL
+{{- end }}
