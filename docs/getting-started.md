@@ -53,6 +53,36 @@ kubectl -n cluster-probe port-forward svc/clusterprobe-clusterprobe-api 8080:808
 - API health: `http://localhost:8080/healthz`
 - API status: `http://localhost:8080/api/v1/status`
 
+## Local smoke validation
+
+After the API and UI are reachable, run the product smoke script:
+
+```bash
+make smoke-local
+```
+
+By default it expects:
+
+- API: `http://127.0.0.1:8080`
+- UI: `http://127.0.0.1:8081`
+
+Override those when using alternate port-forwards:
+
+```bash
+API_URL=http://127.0.0.1:18120 \
+UI_URL=http://127.0.0.1:18121 \
+make smoke-local
+```
+
+The smoke script verifies:
+
+- API health and status endpoints
+- UI dashboard rendering
+- scenario creation and terminal status polling
+- metrics snapshot production for the created scenario
+- UI log SSE stream availability
+- scenarios UI rendering of the created scenario
+
 ## First workload scenario
 
 Create a short mixed workload through the API:
@@ -129,6 +159,18 @@ kubectl kustomize deploy/kustomize/overlays/keda-worker --load-restrictor=LoadRe
 - Grafana dashboards are included for overview, workloads, chaos, and traces.
 
 ## CI/CD notes
+
+The `ci` workflow enforces the local quality gates:
+
+- lint
+- `go build ./...`
+- `go test ./...`
+- race tests
+- internal coverage threshold
+- Testcontainers-backed integration tests
+- Helm lint and render
+- Kustomize base and overlay rendering
+- per-service Docker image builds
 
 The manual `build-push` workflow publishes multi-architecture images for `api`, `worker`, `ui`, and `chaos-ctrl`.
 

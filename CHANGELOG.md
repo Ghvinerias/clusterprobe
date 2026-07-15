@@ -68,6 +68,8 @@
   terminal scenarios.
 - Synchronized Chaos Mesh live status back into stored experiment metadata and
   removed Mongo records after successful experiment deletion.
+- Expanded CI to cover build, race, coverage, integration, Helm, Kustomize, and
+  Docker image validation, and documented the local smoke workflow.
 
 ## v0.1.0
 

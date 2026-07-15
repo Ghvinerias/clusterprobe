@@ -25,30 +25,78 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+      - name: Build
+        run: go build ./...
       - name: Test
-        run: go test ./... -race -coverprofile=coverage.out
+        run: go test ./... -coverprofile=coverage.out
+      - name: Race test
+        run: go test -vet=off ./... -race
+      - name: Internal coverage threshold
+        run: |
+          go test ./internal/... -coverprofile=internal-coverage.out
+          total="$(go tool cover -func=internal-coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')"
+          awk -v total="$total" 'BEGIN { if (total < 70) exit 1 }'
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: coverage.out
+          path: |
+            coverage.out
+            internal-coverage.out
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Integration tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: go test -tags=integration ./integration ./cmd/api/handlers ./internal/db ./internal/messaging -count=1
 
   helm-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: helm/kind-action@v1
+      - uses: azure/setup-helm@v4
       - name: Helm lint
         run: helm lint deploy/helm/clusterprobe
+      - name: Helm template
+        run: helm template clusterprobe deploy/helm/clusterprobe --namespace cluster-probe >/tmp/clusterprobe-rendered.yaml
 
   kustomize-validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: helm/kind-action@v1
       - uses: azure/setup-kubectl@v4
       - uses: imranismail/setup-kustomize@v2
+      - name: Validate base
+        run: kubectl kustomize deploy/kustomize/base --load-restrictor=LoadRestrictionsNone | kubectl apply --dry-run=client --validate=false -f -
       - name: Validate self-contained
-        run: kustomize build --load-restrictor LoadRestrictionsNone deploy/kustomize/overlays/self-contained | kubectl apply --dry-run=client --validate=false -f -
+        run: kubectl kustomize deploy/kustomize/overlays/self-contained --load-restrictor=LoadRestrictionsNone | kubectl apply --dry-run=client --validate=false -f -
       - name: Validate existing-stack
-        run: kustomize build --load-restrictor LoadRestrictionsNone deploy/kustomize/overlays/existing-stack | kubectl apply --dry-run=client --validate=false -f -
+        run: kubectl kustomize deploy/kustomize/overlays/existing-stack --load-restrictor=LoadRestrictionsNone | kubectl apply --dry-run=client --validate=false -f -
+      - name: Validate keda-worker
+        run: kubectl kustomize deploy/kustomize/overlays/keda-worker --load-restrictor=LoadRestrictionsNone | kubectl apply --dry-run=client --validate=false -f -
+
+  docker-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, worker, ui, chaos-ctrl]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./cmd/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: clusterprobe-${{ matrix.service }}:ci
+          build-args: |
+            VERSION=ci
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=ci

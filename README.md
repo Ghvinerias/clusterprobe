@@ -38,6 +38,9 @@ helm install clusterprobe ./deploy/helm/clusterprobe -n cluster-probe --create-n
 kubectl -n cluster-probe get pods
 ```
 
+After port-forwarding the API and UI, run `make smoke-local` to verify health,
+scenario execution, metrics, logs, and UI rendering.
+
 **Docs**
 - Getting started: `docs/getting-started.md`
 - Helm values: `docs/helm-values.md`
