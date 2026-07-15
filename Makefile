@@ -10,7 +10,7 @@ VERSION ?= dev
 COMMIT_SHA ?= $(shell git rev-parse --short HEAD)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-.PHONY: build test test-race lint gosec docker-build docker-push kustomize-build helm-lint review test-integration
+.PHONY: build test test-race lint gosec docker-build docker-push kustomize-build helm-lint smoke-local review test-integration
 
 build:
 	go build ./...
@@ -51,5 +51,8 @@ kustomize-build:
 
 helm-lint:
 	helm lint $(HELM_DIR)
+
+smoke-local:
+	./scripts/smoke-local.sh
 
 review: lint test test-race helm-lint kustomize-build gosec
