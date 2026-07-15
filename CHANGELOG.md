@@ -24,6 +24,7 @@
   by liveness checks.
 - Added `chaos-ctrl`, a small CLI for applying, listing, checking, and deleting
   Chaos Mesh experiments from manifests.
+- Added the `chaos-ctrl` container image to the manual release workflow.
 - Added a RabbitMQ testcontainers integration test covering topology,
   publishing, and consumption.
 - Added opt-in KEDA Worker autoscaling for Helm and Kustomize, and moved the

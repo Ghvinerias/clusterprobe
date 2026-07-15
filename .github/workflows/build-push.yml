@@ -18,7 +18,7 @@ jobs:
       contents: write
     strategy:
       matrix:
-        service: [api, worker, ui]
+        service: [api, worker, ui, chaos-ctrl]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
