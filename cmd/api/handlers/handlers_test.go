@@ -297,6 +297,9 @@ func TestScenarioList(t *testing.T) {
 
 	store := &mockPostgres{
 		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
+			if !strings.Contains(sql, "payload->>'status' <> ''") {
+				t.Fatalf("expected scenario list query to filter lifecycle rows, got %s", sql)
+			}
 			return &rowsStub{rows: [][]any{row}}, nil
 		},
 	}
@@ -316,6 +319,53 @@ func TestScenarioList(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestScenarioGetFiltersLifecycleRows(t *testing.T) {
+	created := time.Now().UTC()
+	rowPayload := []byte(`{
+  "id": "id",
+  "name": "test",
+  "profile": {
+    "rps": 1,
+    "duration": 1000000000,
+    "payload_size_bytes": 0,
+    "concurrency": 1,
+    "target_queue": "workload.high",
+    "workload_type": "db_write"
+  },
+  "status": "completed",
+  "created_at": "` + created.Format(time.RFC3339Nano) + `"
+}`)
+
+	store := &mockPostgres{
+		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
+			if !strings.Contains(sql, "payload->>'status' <> ''") {
+				t.Fatalf("expected scenario get query to filter lifecycle rows, got %s", sql)
+			}
+			return &rowStub{values: []any{"id", rowPayload, created}}
+		},
+	}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/id", nil)
+	rec := httptest.NewRecorder()
+
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"status": "completed"`) {
+		t.Fatalf("expected completed status, got %s", rec.Body.String())
 	}
 }
 
@@ -400,6 +450,9 @@ func TestScenarioStopPublishError(t *testing.T) {
 func TestStatus(t *testing.T) {
 	store := &mockPostgres{
 		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
+			if !strings.Contains(sql, "payload->>'status' <> ''") {
+				t.Fatalf("expected status count query to filter lifecycle rows, got %s", sql)
+			}
 			return &rowStub{values: []any{int64(2), int64(3)}}
 		},
 	}

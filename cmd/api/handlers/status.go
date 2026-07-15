@@ -22,6 +22,7 @@ const (
 		"COUNT(*) FILTER (WHERE payload->>'status' = 'completed') " +
 		"FROM (" +
 		"SELECT DISTINCT ON (scenario_id) payload FROM load_events " +
+		"WHERE payload->>'status' <> '' " +
 		"ORDER BY scenario_id, created_at DESC, id DESC" +
 		") latest"
 )

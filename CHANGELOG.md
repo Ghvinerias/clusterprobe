@@ -57,6 +57,8 @@
 - Updated Makefile developer targets for per-service Docker builds, full
   integration test packages, race tests, and Kustomize rendering.
 - Fixed workload lint findings and MongoDB test formatting.
+- Filtered API scenario status queries to lifecycle events so workload rows do
+  not temporarily blank scenario state.
 
 ## v0.1.0
 
