@@ -19,6 +19,7 @@
 - Added the API log stream route used by the UI logs page.
 - Derived API scenario status counters from the latest persisted scenario
   events.
+- Added bounded RabbitMQ startup retry for API and Worker processes.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

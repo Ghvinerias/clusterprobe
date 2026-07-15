@@ -28,7 +28,9 @@ import (
 )
 
 const (
-	serviceName = "clusterprobe-api"
+	serviceName          = "clusterprobe-api"
+	startupRetryAttempts = 30
+	startupRetryBackoff  = 2 * time.Second
 )
 
 var (
@@ -89,7 +91,7 @@ func main() {
 		_ = mongoClient.Close(context.Background())
 	}()
 
-	producer, err := messaging.NewProducer(ctx, cfg.RabbitMQURL)
+	producer, err := newProducerWithRetry(ctx, cfg.RabbitMQURL)
 	if err != nil {
 		slog.Error("rabbitmq init failed", "error", err)
 		os.Exit(1)
@@ -175,6 +177,30 @@ func newChaosClient() (*chaos.ChaosClient, error) {
 		return nil, fmt.Errorf("dynamic client: %w", err)
 	}
 	return chaos.NewChaosClient(client, "cluster-probe"), nil
+}
+
+func newProducerWithRetry(ctx context.Context, rabbitURL string) (*messaging.Producer, error) {
+	var lastErr error
+	for attempt := 1; attempt <= startupRetryAttempts; attempt++ {
+		producer, err := messaging.NewProducer(ctx, rabbitURL)
+		if err == nil {
+			return producer, nil
+		}
+		lastErr = err
+		slog.Warn(
+			"rabbitmq producer unavailable",
+			"attempt", attempt,
+			"max_attempts", startupRetryAttempts,
+			"error", err,
+		)
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("rabbitmq producer retry canceled: %w", ctx.Err())
+		case <-time.After(startupRetryBackoff):
+		}
+	}
+	return nil, fmt.Errorf("rabbitmq producer unavailable after retries: %w", lastErr)
 }
 
 type postgresAdapter struct {

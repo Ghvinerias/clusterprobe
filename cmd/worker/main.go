@@ -32,9 +32,11 @@ import (
 )
 
 const (
-	serviceName = "clusterprobe-worker"
-	queueHigh   = "workload.high"
-	queueLow    = "workload.low"
+	serviceName          = "clusterprobe-worker"
+	queueHigh            = "workload.high"
+	queueLow             = "workload.low"
+	startupRetryAttempts = 30
+	startupRetryBackoff  = 2 * time.Second
 )
 
 var (
@@ -92,7 +94,7 @@ func main() {
 		_ = redisClient.Close()
 	}()
 
-	producer, err := messaging.NewProducer(ctx, cfg.RabbitMQURL)
+	producer, err := newProducerWithRetry(ctx, cfg.RabbitMQURL)
 	if err != nil {
 		slog.Error("rabbitmq producer init failed", "error", err)
 		os.Exit(1)
@@ -140,7 +142,7 @@ func main() {
 			return queueLow
 		}
 		consumerFactory := func() (consumer, error) {
-			return messaging.NewConsumer(ctx, cfg.RabbitMQURL, 1)
+			return newConsumerWithRetry(ctx, cfg.RabbitMQURL, 1)
 		}
 		handler := func(msgCtx context.Context, msg amqp.Delivery) error {
 			workCtx := context.WithoutCancel(msgCtx)
@@ -170,6 +172,54 @@ func buildHTTPServer(metricsHandler http.Handler) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	return mux
+}
+
+func newProducerWithRetry(ctx context.Context, rabbitURL string) (*messaging.Producer, error) {
+	var lastErr error
+	for attempt := 1; attempt <= startupRetryAttempts; attempt++ {
+		producer, err := messaging.NewProducer(ctx, rabbitURL)
+		if err == nil {
+			return producer, nil
+		}
+		lastErr = err
+		slog.Warn(
+			"rabbitmq producer unavailable",
+			"attempt", attempt,
+			"max_attempts", startupRetryAttempts,
+			"error", err,
+		)
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("rabbitmq producer retry canceled: %w", ctx.Err())
+		case <-time.After(startupRetryBackoff):
+		}
+	}
+	return nil, fmt.Errorf("rabbitmq producer unavailable after retries: %w", lastErr)
+}
+
+func newConsumerWithRetry(ctx context.Context, rabbitURL string, prefetch int) (*messaging.Consumer, error) {
+	var lastErr error
+	for attempt := 1; attempt <= startupRetryAttempts; attempt++ {
+		consumer, err := messaging.NewConsumer(ctx, rabbitURL, prefetch)
+		if err == nil {
+			return consumer, nil
+		}
+		lastErr = err
+		slog.Warn(
+			"rabbitmq consumer unavailable",
+			"attempt", attempt,
+			"max_attempts", startupRetryAttempts,
+			"error", err,
+		)
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("rabbitmq consumer retry canceled: %w", ctx.Err())
+		case <-time.After(startupRetryBackoff):
+		}
+	}
+	return nil, fmt.Errorf("rabbitmq consumer unavailable after retries: %w", lastErr)
 }
 
 func setupPrometheusMetrics(ctx context.Context, cfg config.Config) (http.Handler, func(), error) {
