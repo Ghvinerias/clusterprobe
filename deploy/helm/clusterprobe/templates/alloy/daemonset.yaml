@@ -12,6 +12,8 @@ spec:
       app.kubernetes.io/component: alloy
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/alloy/configmap.yaml") . | sha256sum }}
       labels:
         {{- include "clusterprobe.componentLabels" (dict "root" . "component" "alloy") | nindent 8 }}
     spec:

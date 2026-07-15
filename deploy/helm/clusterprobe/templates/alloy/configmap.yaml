@@ -58,9 +58,7 @@ data:
 
     prometheus.scrape "clusterprobe" {
       targets = [
-        { __address__ = "{{ include "clusterprobe.componentName" (dict "root" . "component" "api") }}:{{ .Values.api.service.port }}", job = "clusterprobe-api" },
         { __address__ = "{{ include "clusterprobe.componentName" (dict "root" . "component" "worker") }}:{{ .Values.worker.service.port }}", job = "clusterprobe-worker" },
-        { __address__ = "{{ include "clusterprobe.componentName" (dict "root" . "component" "ui") }}:{{ .Values.ui.service.port }}", job = "clusterprobe-ui" },
       ]
       forward_to = [prometheus.remote_write.default.receiver]
     }
@@ -84,8 +82,12 @@ data:
       }
       output {
         traces  = [otelcol.exporter.otlp.tempo.input]
-        metrics = []
+        metrics = [otelcol.exporter.prometheus.default.input]
       }
+    }
+
+    otelcol.exporter.prometheus "default" {
+      forward_to = [prometheus.remote_write.default.receiver]
     }
 
     otelcol.exporter.otlp "tempo" {

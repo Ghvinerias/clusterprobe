@@ -14,6 +14,8 @@
 - Fixed scenario lifecycle reporting so Worker executions append running and
   terminal status events, and API scenario lists show the latest event per
   scenario.
+- Wired Alloy OTLP metrics into Prometheus remote write and made Alloy roll
+  automatically when its rendered config changes.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0
