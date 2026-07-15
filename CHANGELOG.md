@@ -17,6 +17,8 @@
 - Wired Alloy OTLP metrics into Prometheus remote write and made Alloy roll
   automatically when its rendered config changes.
 - Added the API log stream route used by the UI logs page.
+- Derived API scenario status counters from the latest persisted scenario
+  events.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

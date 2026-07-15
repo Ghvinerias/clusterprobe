@@ -399,7 +399,9 @@ func TestScenarioStopPublishError(t *testing.T) {
 
 func TestStatus(t *testing.T) {
 	store := &mockPostgres{
-		queryRowFn: func(ctx context.Context, sql string, args ...any) Row { return &rowStub{} },
+		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
+			return &rowStub{values: []any{int64(2), int64(3)}}
+		},
 	}
 	redis := &mockRedis{
 		getFn: func(ctx context.Context, key string) (string, error) {
@@ -419,6 +421,12 @@ func TestStatus(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"scenarios_running": 2`) {
+		t.Fatalf("expected running scenarios from postgres, got %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"scenarios_completed": 3`) {
+		t.Fatalf("expected completed scenarios from postgres, got %s", rec.Body.String())
 	}
 }
 

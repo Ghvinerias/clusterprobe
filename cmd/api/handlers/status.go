@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -14,7 +15,16 @@ type StatusHandler struct {
 	statusKeys map[string]string
 }
 
-const metricsSnapshotQuery = "SELECT snapshot, created_at FROM metrics_snapshots ORDER BY created_at DESC LIMIT 1"
+const (
+	metricsSnapshotQuery = "SELECT snapshot, created_at FROM metrics_snapshots ORDER BY created_at DESC LIMIT 1"
+	scenarioCountsQuery  = "SELECT " +
+		"COUNT(*) FILTER (WHERE payload->>'status' = 'running'), " +
+		"COUNT(*) FILTER (WHERE payload->>'status' = 'completed') " +
+		"FROM (" +
+		"SELECT DISTINCT ON (scenario_id) payload FROM load_events " +
+		"ORDER BY scenario_id, created_at DESC, id DESC" +
+		") latest"
+)
 
 // NewStatusHandler builds a StatusHandler.
 func NewStatusHandler(store PostgresStore, redis RedisStore) *StatusHandler {
@@ -32,19 +42,15 @@ func NewStatusHandler(store PostgresStore, redis RedisStore) *StatusHandler {
 // Status handles GET /api/v1/status.
 func (h *StatusHandler) Status(w http.ResponseWriter, r *http.Request) {
 	counters := make(map[string]int64)
-	for key, redisKey := range h.statusKeys {
-		value, err := h.redis.Get(r.Context(), redisKey)
-		if err != nil {
-			counters[key] = 0
-			continue
-		}
-		parsed, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			counters[key] = 0
-			continue
-		}
-		counters[key] = parsed
+	running, completed, err := h.scenarioCounts(r.Context())
+	if err == nil {
+		counters["scenarios_running"] = running
+		counters["scenarios_completed"] = completed
+	} else {
+		counters["scenarios_running"] = h.redisCounter(r.Context(), "scenarios_running")
+		counters["scenarios_completed"] = h.redisCounter(r.Context(), "scenarios_completed")
 	}
+	counters["chaos_running"] = h.redisCounter(r.Context(), "chaos_running")
 
 	payload := map[string]any{
 		"status":   "ok",
@@ -55,6 +61,28 @@ func (h *StatusHandler) Status(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, payload); err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 	}
+}
+
+func (h *StatusHandler) scenarioCounts(ctx context.Context) (int64, int64, error) {
+	var running int64
+	var completed int64
+	if err := h.store.QueryRow(ctx, scenarioCountsQuery).Scan(&running, &completed); err != nil {
+		return 0, 0, err
+	}
+	return running, completed, nil
+}
+
+func (h *StatusHandler) redisCounter(ctx context.Context, key string) int64 {
+	redisKey := h.statusKeys[key]
+	value, err := h.redis.Get(ctx, redisKey)
+	if err != nil {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return parsed
 }
 
 // Healthz handles GET /healthz.
