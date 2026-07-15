@@ -10,9 +10,33 @@ import (
 )
 
 const (
+	insertScenarioQuery   = "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)"
 	resultsExchange       = "clusterprobe.events"
 	metricsSnapshotInsert = "INSERT INTO metrics_snapshots (snapshot) VALUES ($1)"
 )
+
+func appendScenarioStatus(
+	ctx context.Context,
+	store workload.SQLStore,
+	scenario workload.ScenarioResponse,
+	status string,
+) error {
+	scenario.Status = status
+	if scenario.CreatedAt.IsZero() {
+		scenario.CreatedAt = time.Now().UTC()
+	}
+
+	encoded, err := json.Marshal(scenario)
+	if err != nil {
+		return fmt.Errorf("marshal scenario status: %w", err)
+	}
+
+	if err := store.Exec(ctx, insertScenarioQuery, scenario.ID, encoded); err != nil {
+		return fmt.Errorf("insert scenario status: %w", err)
+	}
+
+	return nil
+}
 
 func reportResult(
 	ctx context.Context,

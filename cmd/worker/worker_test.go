@@ -36,12 +36,12 @@ func (g *fakeGenerator) Called() bool {
 
 type fakeStore struct {
 	execCalls int
-	lastArgs  []any
+	execArgs  [][]any
 }
 
 func (s *fakeStore) Exec(ctx context.Context, sql string, args ...any) error {
 	s.execCalls++
-	s.lastArgs = args
+	s.execArgs = append(s.execArgs, args)
 	return nil
 }
 
@@ -129,6 +129,95 @@ func TestHandleMessageDispatch(t *testing.T) {
 	if publisher.routingKey == "" {
 		t.Fatalf("expected publish")
 	}
+
+	statuses := scenarioStatuses(t, store)
+	if len(statuses) != 2 {
+		t.Fatalf("expected running and completed status events, got %v", statuses)
+	}
+	if statuses[0] != "running" {
+		t.Fatalf("expected first status running, got %s", statuses[0])
+	}
+	if statuses[1] != "completed" {
+		t.Fatalf("expected second status completed, got %s", statuses[1])
+	}
+}
+
+func TestHandleMessageMarksScenarioFailed(t *testing.T) {
+	gen := &fakeGenerator{
+		result: workload.Result{Ops: 1, Duration: time.Millisecond},
+		err:    assertError("generator failed"),
+	}
+	gens := map[workload.WorkloadType]workload.Generator{
+		workload.WorkloadTypeCPUBurn: gen,
+	}
+	store := &fakeStore{}
+	redis := &fakeRedis{}
+	publisher := &fakePublisher{}
+
+	scenario := workload.ScenarioResponse{
+		ID:        "scenario-1",
+		Name:      "scenario",
+		Status:    "queued",
+		CreatedAt: time.Now().UTC(),
+		Profile: workload.LoadProfile{
+			WorkloadType:     workload.WorkloadTypeCPUBurn,
+			Duration:         time.Millisecond,
+			PayloadSizeBytes: 1024 * 1024,
+			Concurrency:      2,
+			RPS:              1,
+			TargetQueue:      "workload.high",
+		},
+	}
+	body, err := json.Marshal(scenario)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	msg := amqp.Delivery{Body: body}
+	if err := handleMessage(context.Background(), msg, gens, store, redis, publisher); err != nil {
+		t.Fatalf("handleMessage: %v", err)
+	}
+
+	statuses := scenarioStatuses(t, store)
+	if len(statuses) != 2 {
+		t.Fatalf("expected running and failed status events, got %v", statuses)
+	}
+	if statuses[1] != "failed" {
+		t.Fatalf("expected terminal status failed, got %s", statuses[1])
+	}
+	if redis.counters["cp:errors:total"] == 0 {
+		t.Fatalf("expected errors counter")
+	}
+}
+
+type assertError string
+
+func (e assertError) Error() string { return string(e) }
+
+func scenarioStatuses(t *testing.T, store *fakeStore) []string {
+	t.Helper()
+
+	statuses := make([]string, 0, len(store.execArgs))
+	for _, args := range store.execArgs {
+		if len(args) < 2 {
+			continue
+		}
+
+		payload, ok := args[1].([]byte)
+		if !ok {
+			continue
+		}
+
+		var scenario workload.ScenarioResponse
+		if err := json.Unmarshal(payload, &scenario); err != nil {
+			continue
+		}
+		if scenario.Status == "running" || scenario.Status == "completed" || scenario.Status == "failed" {
+			statuses = append(statuses, scenario.Status)
+		}
+	}
+
+	return statuses
 }
 
 type fakeConsumer struct {

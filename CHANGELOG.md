@@ -11,6 +11,9 @@
 - Fixed local Colima deployment issues: Docker target-arch builds, automatic
   Postgres schema initialization, UI health/API wiring, Worker probe port, and
   Alloy/Tempo Helm configuration.
+- Fixed scenario lifecycle reporting so Worker executions append running and
+  terminal status events, and API scenario lists show the latest event per
+  scenario.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

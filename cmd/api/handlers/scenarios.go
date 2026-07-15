@@ -14,9 +14,12 @@ const scenariosExchange = "clusterprobe.events"
 
 const (
 	insertScenarioQuery = "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)"
-	listScenarioQuery   = "SELECT scenario_id, payload, created_at FROM load_events ORDER BY created_at DESC LIMIT 50"
-	getScenarioQuery    = "SELECT scenario_id, payload, created_at FROM load_events " +
-		"WHERE scenario_id=$1 ORDER BY created_at DESC LIMIT 1"
+	listScenarioQuery   = "SELECT scenario_id, payload, created_at FROM (" +
+		"SELECT DISTINCT ON (scenario_id) scenario_id, payload, created_at, id FROM load_events " +
+		"ORDER BY scenario_id, created_at DESC, id DESC" +
+		") latest ORDER BY created_at DESC LIMIT 50"
+	getScenarioQuery = "SELECT scenario_id, payload, created_at FROM load_events " +
+		"WHERE scenario_id=$1 ORDER BY created_at DESC, id DESC LIMIT 1"
 )
 
 // ScenarioHandler handles scenario endpoints.

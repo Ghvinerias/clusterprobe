@@ -269,6 +269,10 @@ func handleMessage(
 		Store:          store,
 	}
 
+	if err := appendScenarioStatus(ctx, store, scenario, "running"); err != nil {
+		return fmt.Errorf("mark scenario running: %w", err)
+	}
+
 	result, err := gen.Execute(ctx, params)
 	if err != nil {
 		result.Error = err.Error()
@@ -276,6 +280,14 @@ func handleMessage(
 
 	if reportErr := reportResult(ctx, scenario, result, redis, producer, store); reportErr != nil {
 		return fmt.Errorf("report result: %w", reportErr)
+	}
+
+	status := "completed"
+	if result.Error != "" {
+		status = "failed"
+	}
+	if err := appendScenarioStatus(ctx, store, scenario, status); err != nil {
+		return fmt.Errorf("mark scenario %s: %w", status, err)
 	}
 
 	return nil
