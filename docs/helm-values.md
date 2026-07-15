@@ -152,3 +152,5 @@ not include KEDA resources.
 | `chaos.controller.image.tag` | string | `v2.7.0` | Chaos Mesh controller tag. |
 | `chaos.daemon.image.repository` | string | `ghcr.io/chaos-mesh/chaos-daemon` | Chaos Mesh daemon image. |
 | `chaos.daemon.image.tag` | string | `v2.7.0` | Chaos Mesh daemon tag. |
+| `chaos.daemon.runtime` | string | `containerd` | Container runtime used by `chaos-daemon`. |
+| `chaos.daemon.runtimeSocketPath` | string | `/var/run/containerd/containerd.sock` | Runtime socket path mounted from the node through `/var/run`. |

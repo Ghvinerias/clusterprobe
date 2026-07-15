@@ -156,3 +156,5 @@ chaos:
     image:
       repository: ghcr.io/chaos-mesh/chaos-daemon
       tag: v2.7.0
+    runtime: containerd
+    runtimeSocketPath: /var/run/containerd/containerd.sock

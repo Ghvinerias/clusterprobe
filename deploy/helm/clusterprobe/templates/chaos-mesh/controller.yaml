@@ -62,10 +62,8 @@ spec:
         - name: controller-manager
           image: "{{ .Values.chaos.controller.image.repository }}:{{ .Values.chaos.controller.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          args:
-            - controller-manager
-            - --leader-elect=true
-            - --allowed-namespaces={{ include "clusterprobe.namespace" . }}
+          command:
+            - /usr/local/bin/chaos-controller-manager
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -74,6 +72,14 @@ spec:
           ports:
             - name: http
               containerPort: 10080
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}-webhook-certs
 ---
 apiVersion: v1
 kind: Service

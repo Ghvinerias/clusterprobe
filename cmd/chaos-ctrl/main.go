@@ -116,21 +116,73 @@ func parseArgs(args []string, stdout io.Writer, stderr io.Writer) (commandConfig
 	flags.StringVar(&cfg.output, "output", "text", "output format: text or json")
 	flags.StringVar(&cfg.output, "o", "text", "output format: text or json")
 
-	if err := flags.Parse(args); err != nil {
+	globalArgs, command, commandArgs := splitCommandArgs(args)
+	if err := flags.Parse(globalArgs); err != nil {
 		return commandConfig{}, "", err
 	}
-	if flags.NArg() == 0 {
+	if command == "" {
 		printUsage(stdout)
 		return commandConfig{}, "", errors.New("command is required")
 	}
 
-	command := flags.Arg(0)
-	cfg.args = flags.Args()[1:]
+	cfg.args = commandArgs
 	if cfg.output != "text" && cfg.output != "json" {
 		return commandConfig{}, "", fmt.Errorf("unsupported output format %q", cfg.output)
 	}
 
 	return cfg, command, nil
+}
+
+func splitCommandArgs(args []string) ([]string, string, []string) {
+	globalArgs := make([]string, 0, len(args))
+	commandArgs := make([]string, 0, len(args))
+	command := ""
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if command == "" {
+			if isCommand(arg) {
+				command = arg
+				continue
+			}
+			globalArgs = append(globalArgs, arg)
+			continue
+		}
+
+		if isGlobalFlag(arg) {
+			globalArgs = append(globalArgs, arg)
+			if !strings.Contains(arg, "=") && i+1 < len(args) {
+				i++
+				globalArgs = append(globalArgs, args[i])
+			}
+			continue
+		}
+		commandArgs = append(commandArgs, arg)
+	}
+
+	return globalArgs, command, commandArgs
+}
+
+func isCommand(arg string) bool {
+	switch arg {
+	case "apply", "status", "delete", "list", "version":
+		return true
+	default:
+		return false
+	}
+}
+
+func isGlobalFlag(arg string) bool {
+	name := strings.TrimLeft(arg, "-")
+	if before, _, ok := strings.Cut(name, "="); ok {
+		name = before
+	}
+	switch name {
+	case "namespace", "kubeconfig", "context", "output", "o":
+		return strings.HasPrefix(arg, "-")
+	default:
+		return false
+	}
 }
 
 func printUsage(w io.Writer) {

@@ -20,6 +20,11 @@ spec:
         - name: chaos-daemon
           image: "{{ .Values.chaos.daemon.image.repository }}:{{ .Values.chaos.daemon.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - /usr/local/bin/chaos-daemon
+          args:
+            - --runtime={{ .Values.chaos.daemon.runtime }}
+            - --runtime-socket-path={{ .Values.chaos.daemon.runtimeSocketPath }}
           securityContext:
             privileged: true
           ports:

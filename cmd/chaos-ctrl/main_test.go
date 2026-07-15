@@ -83,6 +83,35 @@ spec:
 	}
 }
 
+func TestRunApplyAcceptsGlobalFlagsAfterCommand(t *testing.T) {
+	client := &fakeChaosClient{}
+	stdout := &bytes.Buffer{}
+
+	err := runWithClient(
+		context.Background(),
+		[]string{"apply", "--kubeconfig", "/tmp/kubeconfig", "--namespace", "cluster-probe", "-f", "experiment.yaml"},
+		stdout,
+		&bytes.Buffer{},
+		client,
+		func(path string) ([]byte, error) {
+			return []byte(`
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-worker
+spec:
+  action: pod-kill
+`), nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("run apply: %v", err)
+	}
+	if client.applied.Namespace != "cluster-probe" {
+		t.Fatalf("expected namespace from global flag, got %s", client.applied.Namespace)
+	}
+}
+
 func TestRunStatusJSON(t *testing.T) {
 	now := time.Now().UTC()
 	client := &fakeChaosClient{

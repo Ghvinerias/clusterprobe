@@ -43,6 +43,15 @@
   before enough rows exist in the read window.
 - Added Helm API ServiceAccount and Chaos Mesh RBAC so API-triggered
   experiments have the same permissions as the Kustomize deployment.
+- Fixed the Helm and Kustomize Chaos Mesh controller command for bundled
+  Chaos Mesh images.
+- Fixed the Helm and Kustomize Chaos Mesh daemon command and added configurable
+  runtime socket settings.
+- Vendored Chaos Mesh CRDs into the Helm chart and added controller webhook
+  certificates for self-contained local installs.
+- Defaulted Chaos Mesh daemon runtime socket to the generic containerd path used
+  by Colima and other containerd-based clusters.
+- Allowed `chaos-ctrl` global flags before or after the subcommand.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

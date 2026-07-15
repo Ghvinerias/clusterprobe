@@ -73,9 +73,8 @@ spec:
         - name: controller-manager
           image: ghcr.io/chaos-mesh/chaos-mesh:v2.8.1
           imagePullPolicy: IfNotPresent
-          args:
-            - controller-manager
-            - --leader-elect=true
+          command:
+            - /usr/local/bin/chaos-controller-manager
           env:
             - name: POD_NAMESPACE
               valueFrom:
