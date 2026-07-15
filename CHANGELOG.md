@@ -41,6 +41,8 @@
   not yet have `worker.autoscaling.keda` values.
 - Treated empty DB reads as non-fatal so first-run mixed workloads can complete
   before enough rows exist in the read window.
+- Added Helm API ServiceAccount and Chaos Mesh RBAC so API-triggered
+  experiments have the same permissions as the Kustomize deployment.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

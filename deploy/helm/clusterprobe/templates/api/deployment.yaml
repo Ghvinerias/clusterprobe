@@ -17,6 +17,7 @@ spec:
       labels:
         {{- include "clusterprobe.componentLabels" (dict "root" . "component" "api") | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "clusterprobe.componentName" (dict "root" . "component" "api") }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
