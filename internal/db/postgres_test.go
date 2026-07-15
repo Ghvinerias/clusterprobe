@@ -78,6 +78,8 @@ func TestPostgresInitSchema(t *testing.T) {
 	client := &PostgresClient{pool: mock, tracer: otel.Tracer("test")}
 
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS load_events").WillReturnResult(pgxmock.NewResult("CREATE", 0))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS scenario_events").WillReturnResult(pgxmock.NewResult("CREATE", 0))
+	mock.ExpectExec("INSERT INTO scenario_events").WillReturnResult(pgxmock.NewResult("INSERT", 0))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS chaos_events").WillReturnResult(pgxmock.NewResult("CREATE", 0))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS metrics_snapshots").WillReturnResult(pgxmock.NewResult("CREATE", 0))
 

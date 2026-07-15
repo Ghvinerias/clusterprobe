@@ -297,8 +297,8 @@ func TestScenarioList(t *testing.T) {
 
 	store := &mockPostgres{
 		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
-			if !strings.Contains(sql, "payload->>'status' <> ''") {
-				t.Fatalf("expected scenario list query to filter lifecycle rows, got %s", sql)
+			if !strings.Contains(sql, "FROM scenario_events") {
+				t.Fatalf("expected scenario list query to read lifecycle table, got %s", sql)
 			}
 			return &rowsStub{rows: [][]any{row}}, nil
 		},
@@ -341,8 +341,8 @@ func TestScenarioGetFiltersLifecycleRows(t *testing.T) {
 
 	store := &mockPostgres{
 		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
-			if !strings.Contains(sql, "payload->>'status' <> ''") {
-				t.Fatalf("expected scenario get query to filter lifecycle rows, got %s", sql)
+			if !strings.Contains(sql, "FROM scenario_events") {
+				t.Fatalf("expected scenario get query to read lifecycle table, got %s", sql)
 			}
 			return &rowStub{values: []any{"id", rowPayload, created}}
 		},
@@ -450,8 +450,8 @@ func TestScenarioStopPublishError(t *testing.T) {
 func TestStatus(t *testing.T) {
 	store := &mockPostgres{
 		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
-			if !strings.Contains(sql, "payload->>'status' <> ''") {
-				t.Fatalf("expected status count query to filter lifecycle rows, got %s", sql)
+			if !strings.Contains(sql, "FROM scenario_events") {
+				t.Fatalf("expected status count query to read lifecycle table, got %s", sql)
 			}
 			return &rowStub{values: []any{int64(2), int64(3)}}
 		},

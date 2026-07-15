@@ -60,6 +60,10 @@
 - Filtered API scenario status queries to lifecycle events so workload rows do
   not temporarily blank scenario state.
 - Kept API-rendered chaos status badges polling while experiments are running.
+- Split scenario lifecycle records into `scenario_events` so workload samples in
+  `load_events` cannot affect scenario state.
+- Added a repeatable local product smoke script for API, UI, scenario,
+  metrics, and log-stream validation.
 
 ## v0.1.0
 

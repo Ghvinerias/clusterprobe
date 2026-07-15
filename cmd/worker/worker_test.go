@@ -36,11 +36,13 @@ func (g *fakeGenerator) Called() bool {
 
 type fakeStore struct {
 	execCalls int
+	execSQL   []string
 	execArgs  [][]any
 }
 
 func (s *fakeStore) Exec(ctx context.Context, sql string, args ...any) error {
 	s.execCalls++
+	s.execSQL = append(s.execSQL, sql)
 	s.execArgs = append(s.execArgs, args)
 	return nil
 }
@@ -122,6 +124,9 @@ func TestHandleMessageDispatch(t *testing.T) {
 	}
 	if store.execCalls == 0 {
 		t.Fatalf("expected snapshot insert")
+	}
+	if !hasScenarioEventInsert(store) {
+		t.Fatalf("expected scenario status inserts to use scenario_events")
 	}
 	if redis.counters["cp:ops:total"] == 0 {
 		t.Fatalf("expected ops counter")
@@ -218,6 +223,15 @@ func scenarioStatuses(t *testing.T, store *fakeStore) []string {
 	}
 
 	return statuses
+}
+
+func hasScenarioEventInsert(store *fakeStore) bool {
+	for _, sql := range store.execSQL {
+		if sql == insertScenarioQuery {
+			return true
+		}
+	}
+	return false
 }
 
 type fakeConsumer struct {

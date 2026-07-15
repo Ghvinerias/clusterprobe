@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	insertScenarioQuery   = "INSERT INTO load_events (scenario_id, payload) VALUES ($1, $2)"
+	insertScenarioQuery   = "INSERT INTO scenario_events (scenario_id, payload) VALUES ($1, $2)"
 	resultsExchange       = "clusterprobe.events"
 	metricsSnapshotInsert = "INSERT INTO metrics_snapshots (snapshot) VALUES ($1)"
 )
