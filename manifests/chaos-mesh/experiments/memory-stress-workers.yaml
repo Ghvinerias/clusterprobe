@@ -1,0 +1,20 @@
+# What it tests: Worker behavior under memory pressure during mem_alloc and mixed workloads.
+# Success looks like: Worker memory rises, pods remain below limits, and scenarios finish or fail cleanly.
+# Dashboard: ClusterProbe Workloads.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-stress-workers
+  namespace: cluster-probe
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: worker
+  stressors:
+    memory:
+      workers: 2
+      size: "256MB"
+  duration: "3m"

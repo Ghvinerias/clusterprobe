@@ -35,6 +35,8 @@
   match the current Helm, Kustomize, KEDA, and `chaos-ctrl` workflows.
 - Completed the chaos UI control loop with UI-local status polling, delete
   actions, broader experiment type options, and handler coverage.
+- Expanded the Chaos Mesh experiment library with memory pressure, Postgres
+  packet loss, and Worker/RabbitMQ partition cases plus an experiment matrix.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

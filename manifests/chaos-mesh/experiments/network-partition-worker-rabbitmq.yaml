@@ -1,0 +1,25 @@
+# What it tests: Worker behavior when RabbitMQ is temporarily unreachable.
+# Success looks like: queued work remains durable and workers resume consumption after connectivity returns.
+# Dashboard: ClusterProbe Chaos.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-partition-worker-rabbitmq
+  namespace: cluster-probe
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: worker
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - cluster-probe
+      labelSelectors:
+        app.kubernetes.io/component: rabbitmq
+  direction: both
+  duration: "2m"

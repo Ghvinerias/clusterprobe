@@ -1,0 +1,27 @@
+# What it tests: DB read/write and mixed workload tolerance for packet loss to Postgres.
+# Success looks like: error rate is visible, retries recover after the experiment, and no scenarios stay running forever.
+# Dashboard: ClusterProbe Overview.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-loss-worker-postgres
+  namespace: cluster-probe
+spec:
+  action: loss
+  mode: all
+  selector:
+    namespaces:
+      - cluster-probe
+    labelSelectors:
+      app.kubernetes.io/component: worker
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - cluster-probe
+      labelSelectors:
+        app.kubernetes.io/component: postgres
+  loss:
+    loss: "10"
+    correlation: "25"
+  duration: "3m"
