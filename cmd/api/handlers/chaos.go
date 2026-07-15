@@ -334,7 +334,10 @@ func statusBadgeClass(status string) string {
 
 func isTerminalStatus(status string) bool {
 	lower := strings.ToLower(status)
-	return strings.Contains(lower, "running") || strings.Contains(lower, "fail")
+	return strings.Contains(lower, "complete") ||
+		strings.Contains(lower, "finish") ||
+		strings.Contains(lower, "fail") ||
+		strings.Contains(lower, "error")
 }
 
 type chaosRecord struct {

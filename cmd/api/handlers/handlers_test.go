@@ -586,6 +586,23 @@ func TestChaosList(t *testing.T) {
 	}
 }
 
+func TestChaosStatusBadgeRefreshesUntilTerminal(t *testing.T) {
+	running := renderStatusBadge("exp", "Running")
+	if !strings.Contains(running, `hx-get="/api/v1/chaos/experiments/exp?view=badge"`) {
+		t.Fatalf("expected running badge to keep polling, got %s", running)
+	}
+
+	completed := renderStatusBadge("exp", "Completed")
+	if strings.Contains(completed, "hx-get=") {
+		t.Fatalf("expected completed badge to stop polling, got %s", completed)
+	}
+
+	failed := renderStatusBadge("exp", "Failed")
+	if strings.Contains(failed, "hx-get=") {
+		t.Fatalf("expected failed badge to stop polling, got %s", failed)
+	}
+}
+
 func TestOTELSpansCreated(t *testing.T) {
 	collector, shutdown := startOTLPCollector(t)
 	defer shutdown()

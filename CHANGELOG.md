@@ -59,6 +59,7 @@
 - Fixed workload lint findings and MongoDB test formatting.
 - Filtered API scenario status queries to lifecycle events so workload rows do
   not temporarily blank scenario state.
+- Kept API-rendered chaos status badges polling while experiments are running.
 
 ## v0.1.0
 
