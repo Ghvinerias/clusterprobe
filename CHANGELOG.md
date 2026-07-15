@@ -54,6 +54,8 @@
 - Allowed `chaos-ctrl` global flags before or after the subcommand.
 - Removed stale Helm install notes, replaced deprecated Kustomize fields, and
   dropped the README WIP badge after local end-to-end validation.
+- Updated Makefile developer targets for per-service Docker builds, full
+  integration test packages, race tests, and Kustomize rendering.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

@@ -1,11 +1,16 @@
 SHELL := /bin/bash
 
-IMAGE ?= clusterprobe
+REGISTRY ?= docker.io/slickg
 TAG ?= latest
+SERVICES ?= api worker ui chaos-ctrl
 KUSTOMIZE_DIR ?= deploy/kustomize/base
+KUSTOMIZE_FLAGS ?= --load-restrictor=LoadRestrictionsNone
 HELM_DIR ?= deploy/helm/clusterprobe
+VERSION ?= dev
+COMMIT_SHA ?= $(shell git rev-parse --short HEAD)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-.PHONY: build test lint gosec docker-build docker-push kustomize-build helm-lint review test-integration
+.PHONY: build test test-race lint gosec docker-build docker-push kustomize-build helm-lint review test-integration
 
 build:
 	go build ./...
@@ -13,8 +18,11 @@ build:
 test:
 	go test ./...
 
+test-race:
+	go test -vet=off ./... -race
+
 test-integration:
-	go test ./integration -tags=integration
+	go test -tags=integration ./integration ./internal/db ./internal/messaging
 
 lint:
 	golangci-lint run
@@ -23,15 +31,25 @@ gosec:
 	gosec ./...
 
 docker-build:
-	docker build -t $(IMAGE):$(TAG) .
+	for service in $(SERVICES); do \
+		docker build \
+			-f cmd/$$service/Dockerfile \
+			-t $(REGISTRY)/clusterprobe-$$service:$(TAG) \
+			--build-arg VERSION=$(VERSION) \
+			--build-arg COMMIT_SHA=$(COMMIT_SHA) \
+			--build-arg BUILD_DATE=$(BUILD_DATE) \
+			. ; \
+	done
 
 docker-push:
-	docker push $(IMAGE):$(TAG)
+	for service in $(SERVICES); do \
+		docker push $(REGISTRY)/clusterprobe-$$service:$(TAG) ; \
+	done
 
 kustomize-build:
-	kustomize build $(KUSTOMIZE_DIR)
+	kubectl kustomize $(KUSTOMIZE_DIR) $(KUSTOMIZE_FLAGS)
 
 helm-lint:
 	helm lint $(HELM_DIR)
 
-review: lint test gosec
+review: lint test test-race helm-lint kustomize-build gosec
