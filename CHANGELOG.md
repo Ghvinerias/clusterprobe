@@ -24,6 +24,8 @@
   by liveness checks.
 - Added `chaos-ctrl`, a small CLI for applying, listing, checking, and deleting
   Chaos Mesh experiments from manifests.
+- Added a RabbitMQ testcontainers integration test covering topology,
+  publishing, and consumption.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0
