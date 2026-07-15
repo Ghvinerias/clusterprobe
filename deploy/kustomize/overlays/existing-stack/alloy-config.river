@@ -20,7 +20,7 @@ discovery.relabel "pods" {
   }
 
   rule {
-    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
     target_label  = "service"
   }
 
@@ -32,7 +32,7 @@ discovery.relabel "pods" {
 
 loki.write "default" {
   endpoint {
-    url = "${LOKI_URL}"
+    url = env("LOKI_URL")
   }
 }
 
@@ -43,15 +43,13 @@ loki.source.kubernetes "pods" {
 
 prometheus.remote_write "default" {
   endpoint {
-    url = "${PROMETHEUS_URL}"
+    url = env("PROM_REMOTE_WRITE_URL")
   }
 }
 
 prometheus.scrape "clusterprobe" {
   targets = [
-    { __address__ = "clusterprobe-api:8080", job = "clusterprobe-api" },
     { __address__ = "clusterprobe-worker:8080", job = "clusterprobe-worker" },
-    { __address__ = "clusterprobe-ui:8081", job = "clusterprobe-ui" },
   ]
   forward_to = [prometheus.remote_write.default.receiver]
 }
@@ -65,17 +63,19 @@ otelcol.receiver.otlp "default" {
   }
   output {
     traces  = [otelcol.exporter.otlp.tempo.input]
-    metrics = [otelcol.exporter.prometheusremotewrite.metrics.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
   }
+}
+
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
 }
 
 otelcol.exporter.otlp "tempo" {
-  endpoint = "${TEMPO_URL}"
-  tls {
-    insecure = true
+  client {
+    endpoint = env("TEMPO_OTLP_ENDPOINT")
+    tls {
+      insecure = true
+    }
   }
-}
-
-otelcol.exporter.prometheusremotewrite "metrics" {
-  endpoint = "${PROMETHEUS_URL}"
 }

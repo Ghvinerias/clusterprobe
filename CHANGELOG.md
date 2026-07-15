@@ -28,6 +28,8 @@
   publishing, and consumption.
 - Added opt-in KEDA Worker autoscaling for Helm and Kustomize, and moved the
   ScaledObject out of the base manifests.
+- Aligned Kustomize Alloy and Prometheus observability manifests with the
+  Helm-validated telemetry flow.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

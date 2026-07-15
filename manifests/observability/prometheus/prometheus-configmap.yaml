@@ -17,33 +17,11 @@ data:
       - /etc/prometheus/rules/rules.yml
 
     scrape_configs:
-      - job_name: clusterprobe-api
-        metrics_path: /metrics
+      - job_name: prometheus
         static_configs:
-          - targets: ["clusterprobe-api:8080"]
-
-      - job_name: clusterprobe-worker
-        metrics_path: /metrics
-        static_configs:
-          - targets: ["clusterprobe-worker:8081"]
-
-      - job_name: clusterprobe-ui
-        metrics_path: /metrics
-        static_configs:
-          - targets: ["clusterprobe-ui:8082"]
+          - targets: ["localhost:9090"]
 
       - job_name: clusterprobe-alloy
         metrics_path: /metrics
         static_configs:
           - targets: ["clusterprobe-alloy:12345"]
-
-      - job_name: kube-state-metrics
-        static_configs:
-          - targets: ["kube-state-metrics:8080"]
-
-      - job_name: node-exporter
-        static_configs:
-          - targets: ["node-exporter:9100"]
-
-    remote_write:
-      - url: http://clusterprobe-alloy:12345/api/v1/write

@@ -11,7 +11,7 @@ This overlay deploys the full ClusterProbe stack plus the observability stack (A
 ## Deploy
 
 ```bash
-kubectl apply -k deploy/kustomize/overlays/self-contained
+kubectl kustomize deploy/kustomize/overlays/self-contained --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
 ```
 
 ## Notes
