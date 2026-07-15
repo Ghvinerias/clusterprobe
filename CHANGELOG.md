@@ -52,6 +52,8 @@
 - Defaulted Chaos Mesh daemon runtime socket to the generic containerd path used
   by Colima and other containerd-based clusters.
 - Allowed `chaos-ctrl` global flags before or after the subcommand.
+- Removed stale Helm install notes, replaced deprecated Kustomize fields, and
+  dropped the README WIP badge after local end-to-end validation.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

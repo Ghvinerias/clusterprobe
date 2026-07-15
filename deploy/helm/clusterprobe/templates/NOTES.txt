@@ -1,5 +1,29 @@
-ClusterProbe chart installed.
+ClusterProbe is installed in namespace {{ include "clusterprobe.namespace" . }}.
 
-Next steps:
-1. Add service manifests and deployments as they become available.
-2. Configure values in values.yaml before installing in production.
+Core services:
+  API:    {{ include "clusterprobe.componentName" (dict "root" . "component" "api") }}:{{ .Values.api.service.port }}
+  UI:     {{ include "clusterprobe.componentName" (dict "root" . "component" "ui") }}:{{ .Values.ui.service.port }}
+  Worker: {{ include "clusterprobe.componentName" (dict "root" . "component" "worker") }}:{{ .Values.worker.service.port }}
+
+Open local access:
+  kubectl -n {{ include "clusterprobe.namespace" . }} port-forward svc/{{ include "clusterprobe.componentName" (dict "root" . "component" "ui") }} 8081:{{ .Values.ui.service.port }}
+  kubectl -n {{ include "clusterprobe.namespace" . }} port-forward svc/{{ include "clusterprobe.componentName" (dict "root" . "component" "api") }} 8080:{{ .Values.api.service.port }}
+
+Then visit:
+  UI:  http://localhost:8081
+  API: http://localhost:8080/api/v1/status
+
+Useful checks:
+  kubectl -n {{ include "clusterprobe.namespace" . }} get pods
+  kubectl -n {{ include "clusterprobe.namespace" . }} logs deploy/{{ include "clusterprobe.componentName" (dict "root" . "component" "api") }}
+
+{{- if .Values.chaos.enabled }}
+
+Chaos Mesh is enabled. Verify controller and daemon readiness:
+  kubectl -n {{ include "clusterprobe.namespace" . }} rollout status deploy/{{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-mesh") }}
+  kubectl -n {{ include "clusterprobe.namespace" . }} rollout status ds/{{ include "clusterprobe.componentName" (dict "root" . "component" "chaos-daemon") }}
+{{- else }}
+
+Chaos Mesh is disabled. Enable it with:
+  helm upgrade {{ .Release.Name }} {{ .Chart.Name }} -n {{ include "clusterprobe.namespace" . }} --reuse-values --set chaos.enabled=true
+{{- end }}

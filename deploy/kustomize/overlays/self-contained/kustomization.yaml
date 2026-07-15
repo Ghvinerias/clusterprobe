@@ -42,10 +42,10 @@ configMapGenerator:
     behavior: replace
     files:
       - config.river=alloy-config.river
-patchesStrategicMerge:
-  - patch-api-replicas.yaml
-  - patch-worker-replicas.yaml
-  - patch-ui-replicas.yaml
+patches:
+  - path: patch-api-replicas.yaml
+  - path: patch-worker-replicas.yaml
+  - path: patch-ui-replicas.yaml
 
 images:
   - name: clusterprobe-api

@@ -3,10 +3,12 @@ kind: Kustomization
 
 namespace: cluster-probe
 
-commonLabels:
-  app.kubernetes.io/name: clusterprobe
-  app.kubernetes.io/part-of: clusterprobe
-  app.kubernetes.io/managed-by: kustomize
+labels:
+  - pairs:
+      app.kubernetes.io/name: clusterprobe
+      app.kubernetes.io/part-of: clusterprobe
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: true
 
 resources:
   - namespace.yaml
