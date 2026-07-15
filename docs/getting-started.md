@@ -62,10 +62,14 @@ curl -sS -X POST http://localhost:8080/api/v1/scenarios \
   -H 'content-type: application/json' \
   -d '{
     "name": "smoke-mixed",
-    "description": "local smoke workload",
-    "type": "mixed",
-    "duration_seconds": 15,
-    "parallelism": 2
+    "profile": {
+      "rps": 5,
+      "duration": 15000000000,
+      "payload_size_bytes": 128,
+      "concurrency": 2,
+      "target_queue": "workload.high",
+      "workload_type": "mixed"
+    }
   }'
 ```
 

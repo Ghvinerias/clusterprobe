@@ -39,6 +39,8 @@
   packet loss, and Worker/RabbitMQ partition cases plus an experiment matrix.
 - Made the Helm KEDA `ScaledObject` template safe for older releases that do
   not yet have `worker.autoscaling.keda` values.
+- Treated empty DB reads as non-fatal so first-run mixed workloads can complete
+  before enough rows exist in the read window.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0

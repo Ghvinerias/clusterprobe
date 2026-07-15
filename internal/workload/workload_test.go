@@ -2,6 +2,7 @@ package workload
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -140,6 +141,21 @@ func TestDBReadGeneratorScanError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
+}
+
+func TestDBReadGeneratorNoRowsIsNotFatal(t *testing.T) {
+	store := &mockStore{row: &mockRow{err: sql.ErrNoRows}}
+	gen := &DBReadGenerator{}
+	params := WorkloadParams{
+		ScenarioID:     "s1",
+		WorkloadType:   WorkloadTypeDBRead,
+		DurationMs:     5,
+		ReadLookbackMs: int64(1000),
+		Store:          store,
+	}
+	result, err := gen.Execute(context.Background(), params)
+	require.NoError(t, err)
+	require.Empty(t, result.Error)
 }
 
 func TestMixedGenerator(t *testing.T) {

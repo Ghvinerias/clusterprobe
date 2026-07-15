@@ -3,10 +3,13 @@ package workload
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -62,6 +65,10 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 		queryStart := time.Now()
 		var payload []byte
 		if err := params.Store.QueryRow(ctx, selectLoadEventQuery, since).Scan(&payload); err != nil {
+			if isNoRowsError(err) {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
 			result := Result{Ops: ops, Duration: time.Since(start), Error: err.Error()}
 			finalizeSpan(span, result, err)
 			logCompletion("db_read", result, err)
@@ -76,6 +83,10 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 	finalizeSpan(span, result, nil)
 	logCompletion("db_read", result, nil)
 	return result, nil
+}
+
+func isNoRowsError(err error) bool {
+	return errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows)
 }
 
 func randomDuration(maxMs int64) (time.Duration, error) {
