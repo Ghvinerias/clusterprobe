@@ -37,6 +37,12 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 45
           livenessProbe:
             httpGet:
               path: /healthz

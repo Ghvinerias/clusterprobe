@@ -20,6 +20,8 @@
 - Derived API scenario status counters from the latest persisted scenario
   events.
 - Added bounded RabbitMQ startup retry for API and Worker processes.
+- Added API and Worker startup probes so dependency retry is not interrupted
+  by liveness checks.
 - Fixed workload lint findings and MongoDB test formatting.
 
 ## v0.1.0
