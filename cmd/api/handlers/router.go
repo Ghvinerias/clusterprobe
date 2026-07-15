@@ -11,6 +11,7 @@ type Router struct {
 	scenarios *ScenarioHandler
 	status    *StatusHandler
 	chaos     *ChaosHandler
+	logs      *LogsHandler
 }
 
 // NewRouter builds the router dependencies.
@@ -19,6 +20,7 @@ func NewRouter(scenarios *ScenarioHandler, status *StatusHandler, chaos *ChaosHa
 		scenarios: scenarios,
 		status:    status,
 		chaos:     chaos,
+		logs:      NewLogsHandler(),
 	}
 }
 
@@ -31,6 +33,7 @@ func (r *Router) Routes() http.Handler {
 	mux.Route("/api/v1", func(router chi.Router) {
 		router.Get("/status", r.status.Status)
 		router.Get("/metrics/snapshot", r.status.MetricsSnapshot)
+		router.Get("/logs/stream", r.logs.Stream)
 
 		router.Route("/scenarios", func(router chi.Router) {
 			router.Post("/", r.scenarios.CreateScenario)

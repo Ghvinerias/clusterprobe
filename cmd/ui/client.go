@@ -82,7 +82,9 @@ func (c *apiClient) LogsStream(ctx context.Context) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.client.Do(req)
+	streamClient := *c.client
+	streamClient.Timeout = 0
+	resp, err := streamClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("logs stream request: %w", err)
 	}
