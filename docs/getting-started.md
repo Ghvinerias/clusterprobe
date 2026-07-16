@@ -83,6 +83,22 @@ The smoke script verifies:
 - UI log SSE stream availability
 - scenarios UI rendering of the created scenario
 
+For the full local validation suite, including Go tests, race tests,
+Testcontainers integration tests, Helm/Kustomize rendering, product smoke, and
+browser smoke, run:
+
+```bash
+API_URL=http://127.0.0.1:8080 \
+UI_URL=http://127.0.0.1:8081 \
+make validate-local
+```
+
+On Colima, `scripts/validate-local.sh` automatically uses
+`$HOME/.colima/default/docker.sock` when present and disables the Testcontainers
+Ryuk sidecar for local runs where the host socket path cannot be mounted inside
+the Colima VM. Set `CHROMIUM_EXECUTABLE_PATH` if Chromium is installed outside
+`/Applications/Chromium.app`.
+
 ## First workload scenario
 
 Create a short mixed workload through the API:
