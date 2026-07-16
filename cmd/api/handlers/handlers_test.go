@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -506,8 +507,12 @@ func TestScenarioGetNotFound(t *testing.T) {
 }
 
 func TestScenarioStopPublishError(t *testing.T) {
+	created := time.Now().UTC()
 	store := &mockPostgres{
 		execFn: func(ctx context.Context, sql string, args ...any) error { return nil },
+		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
+			return &rowStub{values: []any{"abc", scenarioPayloadJSON(), created}}
+		},
 	}
 	publisher := &mockPublisher{
 		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
@@ -525,6 +530,51 @@ func TestScenarioStopPublishError(t *testing.T) {
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("expected 502, got %d", rec.Code)
+	}
+}
+
+func TestScenarioStopPreservesMetadata(t *testing.T) {
+	created := time.Now().UTC()
+	var stoppedPayload []byte
+	store := &mockPostgres{
+		execFn: func(ctx context.Context, sql string, args ...any) error {
+			stoppedPayload = args[1].([]byte)
+			return nil
+		},
+		queryRowFn: func(ctx context.Context, sql string, args ...any) Row {
+			return &rowStub{values: []any{"abc", scenarioPayloadJSON(), created}}
+		},
+	}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/scenarios/abc/stop", nil)
+	rec := httptest.NewRecorder()
+
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var stopped workload.ScenarioResponse
+	if err := json.Unmarshal(stoppedPayload, &stopped); err != nil {
+		t.Fatalf("decode stopped payload: %v", err)
+	}
+	if stopped.Status != "stopped" {
+		t.Fatalf("expected stopped status, got %s", stopped.Status)
+	}
+	if stopped.Name != "test" {
+		t.Fatalf("expected scenario name to be preserved, got %q", stopped.Name)
+	}
+	if stopped.Profile.WorkloadType != workload.WorkloadTypeCPUBurn {
+		t.Fatalf("expected workload profile to be preserved, got %q", stopped.Profile.WorkloadType)
 	}
 }
 

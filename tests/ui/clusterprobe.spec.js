@@ -82,6 +82,45 @@ test.describe.serial('ClusterProbe browser smoke', () => {
     await expect(lifecycle.getByText('completed')).toBeVisible();
   });
 
+  test('scenario can be stopped from the UI without losing metadata', async ({ page }) => {
+    const name = `ui-stop-${Date.now()}`;
+    const create = await api.post('/api/v1/scenarios', {
+      data: {
+        name,
+        profile: {
+          rps: 1,
+          duration: 20_000_000_000,
+          payload_size_bytes: 0,
+          concurrency: 1,
+          target_queue: 'workload.low',
+          workload_type: 'db_write',
+        },
+      },
+    });
+    expect(create.status()).toBe(202);
+    const scenario = await create.json();
+    expect(scenario.id).toBeTruthy();
+
+    await page.goto('/scenarios');
+    const row = page.locator(`#scenario-${scenario.id}`);
+    await expect(row).toContainText(name);
+    await row.getByRole('button', { name: 'Stop' }).click();
+    await expect(row).toContainText('stopped');
+    await expect(row).toContainText(name);
+    await expect(row.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+
+    const stopped = await pollJSON(
+      async () => {
+        const response = await api.get(`/api/v1/scenarios/${scenario.id}`);
+        expect(response.ok()).toBeTruthy();
+        return response.json();
+      },
+      (body) => body.status === 'stopped' && body.name === name,
+      10_000,
+    );
+    expect(stopped.profile.workload_type).toBe('db_write');
+  });
+
   test('chaos experiment reaches completed status and appears in the UI', async ({ page }) => {
     const name = `ui-stress-${Date.now()}`;
     const create = await api.post('/api/v1/chaos/experiments', {

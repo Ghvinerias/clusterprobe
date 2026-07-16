@@ -210,11 +210,29 @@ func (h *ScenarioHandler) StopScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := workload.ScenarioResponse{
-		ID:        id,
-		Status:    "stopped",
-		CreatedAt: time.Now().UTC(),
+	row := h.store.QueryRow(r.Context(), getScenarioQuery, id)
+	var scenarioID string
+	var currentPayload []byte
+	var created time.Time
+	if err := row.Scan(&scenarioID, &currentPayload, &created); err != nil {
+		errorResponse(w, http.StatusNotFound, "scenario not found")
+		return
 	}
+
+	var resp workload.ScenarioResponse
+	if err := json.Unmarshal(currentPayload, &resp); err != nil {
+		errorResponse(w, http.StatusInternalServerError, "decode scenario")
+		return
+	}
+	if resp.ID == "" {
+		resp.ID = scenarioID
+	}
+	if resp.ID == "" {
+		resp.ID = id
+	}
+	resp.Status = "stopped"
+	resp.CreatedAt = time.Now().UTC()
+
 	payload, err := json.Marshal(resp)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "marshal scenario")

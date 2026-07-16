@@ -35,9 +35,11 @@ func (g *fakeGenerator) Called() bool {
 }
 
 type fakeStore struct {
-	execCalls int
-	execSQL   []string
-	execArgs  [][]any
+	execCalls      int
+	execSQL        []string
+	execArgs       [][]any
+	latestStatus   string
+	latestStatuses []string
 }
 
 func (s *fakeStore) Exec(ctx context.Context, sql string, args ...any) error {
@@ -52,12 +54,34 @@ func (s *fakeStore) Query(ctx context.Context, sql string, args ...any) (workloa
 }
 
 func (s *fakeStore) QueryRow(ctx context.Context, sql string, args ...any) workload.Row {
-	return &mockRow{}
+	status := s.latestStatus
+	if len(s.latestStatuses) > 0 {
+		status = s.latestStatuses[0]
+		s.latestStatuses = s.latestStatuses[1:]
+	}
+	if status == "" {
+		status = "running"
+	}
+	payload, _ := json.Marshal(workload.ScenarioResponse{Status: status})
+	return &mockRow{values: []any{payload}}
 }
 
-type mockRow struct{}
+type mockRow struct {
+	values []any
+}
 
-func (r *mockRow) Scan(dest ...any) error { return nil }
+func (r *mockRow) Scan(dest ...any) error {
+	if len(r.values) == 0 {
+		return nil
+	}
+	for i, value := range r.values {
+		switch d := dest[i].(type) {
+		case *[]byte:
+			*d = value.([]byte)
+		}
+	}
+	return nil
+}
 
 type mockRows struct{}
 
@@ -192,6 +216,88 @@ func TestHandleMessageMarksScenarioFailed(t *testing.T) {
 	}
 	if redis.counters["cp:errors:total"] == 0 {
 		t.Fatalf("expected errors counter")
+	}
+}
+
+func TestHandleMessagePreservesStoppedScenario(t *testing.T) {
+	gen := &fakeGenerator{result: workload.Result{Ops: 1, Duration: time.Millisecond}}
+	gens := map[workload.WorkloadType]workload.Generator{
+		workload.WorkloadTypeCPUBurn: gen,
+	}
+	store := &fakeStore{latestStatuses: []string{"running", "stopped"}}
+	redis := &fakeRedis{}
+	publisher := &fakePublisher{}
+
+	scenario := workload.ScenarioResponse{
+		ID:        "scenario-1",
+		Name:      "scenario",
+		Status:    "queued",
+		CreatedAt: time.Now().UTC(),
+		Profile: workload.LoadProfile{
+			WorkloadType:     workload.WorkloadTypeCPUBurn,
+			Duration:         time.Millisecond,
+			PayloadSizeBytes: 1024 * 1024,
+			Concurrency:      2,
+			RPS:              1,
+			TargetQueue:      "workload.high",
+		},
+	}
+	body, err := json.Marshal(scenario)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	msg := amqp.Delivery{Body: body}
+	if err := handleMessage(context.Background(), msg, gens, store, redis, publisher); err != nil {
+		t.Fatalf("handleMessage: %v", err)
+	}
+
+	statuses := scenarioStatuses(t, store)
+	if len(statuses) != 1 {
+		t.Fatalf("expected only running status event, got %v", statuses)
+	}
+	if statuses[0] != "running" {
+		t.Fatalf("expected running status, got %s", statuses[0])
+	}
+}
+
+func TestHandleMessageSkipsPreStoppedScenario(t *testing.T) {
+	gen := &fakeGenerator{result: workload.Result{Ops: 1, Duration: time.Millisecond}}
+	gens := map[workload.WorkloadType]workload.Generator{
+		workload.WorkloadTypeCPUBurn: gen,
+	}
+	store := &fakeStore{latestStatus: "stopped"}
+	redis := &fakeRedis{}
+	publisher := &fakePublisher{}
+
+	scenario := workload.ScenarioResponse{
+		ID:        "scenario-1",
+		Name:      "scenario",
+		Status:    "queued",
+		CreatedAt: time.Now().UTC(),
+		Profile: workload.LoadProfile{
+			WorkloadType:     workload.WorkloadTypeCPUBurn,
+			Duration:         time.Millisecond,
+			PayloadSizeBytes: 1024 * 1024,
+			Concurrency:      2,
+			RPS:              1,
+			TargetQueue:      "workload.high",
+		},
+	}
+	body, err := json.Marshal(scenario)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	msg := amqp.Delivery{Body: body}
+	if err := handleMessage(context.Background(), msg, gens, store, redis, publisher); err != nil {
+		t.Fatalf("handleMessage: %v", err)
+	}
+	if gen.Called() {
+		t.Fatalf("expected generator not to run")
+	}
+	if store.execCalls != 0 {
+		t.Fatalf("expected no status or snapshot inserts, got %d", store.execCalls)
 	}
 }
 

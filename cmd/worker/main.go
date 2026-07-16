@@ -336,6 +336,15 @@ func handleMessage(
 		Store:          store,
 	}
 
+	latestStatus, err := latestScenarioStatus(ctx, store, scenario.ID)
+	if err != nil {
+		return fmt.Errorf("load latest scenario status: %w", err)
+	}
+	if isStoppedScenarioStatus(latestStatus) {
+		slog.Info("scenario stopped before execution", "scenario_id", scenario.ID)
+		return nil
+	}
+
 	if err := appendScenarioStatus(ctx, store, scenario, "running"); err != nil {
 		return fmt.Errorf("mark scenario running: %w", err)
 	}
@@ -352,6 +361,14 @@ func handleMessage(
 	status := "completed"
 	if result.Error != "" {
 		status = "failed"
+	}
+	latestStatus, err = latestScenarioStatus(ctx, store, scenario.ID)
+	if err != nil {
+		return fmt.Errorf("load latest scenario status: %w", err)
+	}
+	if isStoppedScenarioStatus(latestStatus) {
+		slog.Info("scenario stopped before terminal update", "scenario_id", scenario.ID)
+		return nil
 	}
 	if err := appendScenarioStatus(ctx, store, scenario, status); err != nil {
 		return fmt.Errorf("mark scenario %s: %w", status, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Ghvinerias/clusterprobe/internal/workload"
@@ -11,6 +12,7 @@ import (
 
 const (
 	insertScenarioQuery   = "INSERT INTO scenario_events (scenario_id, payload) VALUES ($1, $2)"
+	latestScenarioQuery   = "SELECT payload FROM scenario_events WHERE scenario_id=$1 ORDER BY created_at DESC, id DESC LIMIT 1"
 	resultsExchange       = "clusterprobe.events"
 	metricsSnapshotInsert = "INSERT INTO metrics_snapshots (snapshot) VALUES ($1)"
 )
@@ -36,6 +38,24 @@ func appendScenarioStatus(
 	}
 
 	return nil
+}
+
+func latestScenarioStatus(ctx context.Context, store workload.SQLStore, id string) (string, error) {
+	row := store.QueryRow(ctx, latestScenarioQuery, id)
+	var payload []byte
+	if err := row.Scan(&payload); err != nil {
+		return "", fmt.Errorf("select latest scenario status: %w", err)
+	}
+
+	var scenario workload.ScenarioResponse
+	if err := json.Unmarshal(payload, &scenario); err != nil {
+		return "", fmt.Errorf("decode latest scenario status: %w", err)
+	}
+	return scenario.Status, nil
+}
+
+func isStoppedScenarioStatus(status string) bool {
+	return strings.EqualFold(strings.TrimSpace(status), "stopped")
 }
 
 func reportResult(
