@@ -1,0 +1,36 @@
+.git
+.gitignore
+.dockerignore
+
+# Local/editor artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test and browser artifacts
+.playwright-mcp/
+node_modules/
+playwright-report/
+test-results/
+coverage.out
+*.cover
+*.test
+
+# Local generated screenshots and handoff files
+clusterprobe-*.png
+HANDOFF.md
+CONTINIUATION_AGENTSD.md
+
+# Local env/secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Build outputs
+bin/
+build/
+dist/
+*.tar
