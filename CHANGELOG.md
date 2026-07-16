@@ -70,6 +70,13 @@
   removed Mongo records after successful experiment deletion.
 - Expanded CI to cover build, race, coverage, integration, Helm, Kustomize, and
   Docker image validation, and documented the local smoke workflow.
+- Completed bundled Chaos Mesh prerequisites with leader-election lease RBAC
+  and the missing controller CRDs required for self-contained reconciliation.
+- Made Worker startup declare RabbitMQ topology and reconnect consumer channels
+  after consume setup failures so scenarios do not remain queued after fresh
+  cluster startup.
+- Added chaos experiment status fallback from Kubernetes object duration when
+  Chaos Mesh does not publish a `status.phase` field.
 
 ## v0.1.0
 

@@ -102,6 +102,10 @@ func main() {
 	defer func() {
 		_ = producer.Close()
 	}()
+	if err := producer.DeclareTopology(ctx); err != nil {
+		slog.Error("rabbitmq topology failed", "error", err)
+		os.Exit(1)
+	}
 
 	workerCount := cfg.WorkerConcurrency
 	if workerCount <= 0 {

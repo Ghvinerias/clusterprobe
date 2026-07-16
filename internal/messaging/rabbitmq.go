@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -415,6 +416,8 @@ func (c *Consumer) Consume(
 
 		deliveries, err := c.consumeOnce(ctx)
 		if err != nil {
+			slog.Warn("rabbitmq consume setup failed", "queue", c.queue, "error", err)
+			c.reconnect(ctx)
 			select {
 			case <-ctx.Done():
 				return nil

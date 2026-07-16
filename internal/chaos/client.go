@@ -191,6 +191,10 @@ func (c *ChaosClient) List(ctx context.Context) ([]ExperimentStatus, error) {
 }
 
 func statusFromObject(obj *unstructured.Unstructured) ExperimentStatus {
+	return statusFromObjectAt(obj, time.Now)
+}
+
+func statusFromObjectAt(obj *unstructured.Unstructured, now func() time.Time) ExperimentStatus {
 	status := ExperimentStatus{
 		ID:        obj.GetName(),
 		Name:      obj.GetName(),
@@ -215,6 +219,37 @@ func statusFromObject(obj *unstructured.Unstructured) ExperimentStatus {
 			status.EndTime = &parsed
 		}
 	}
+	if status.Phase == "unknown" {
+		status.Phase = inferPhaseFromObject(obj, now)
+	}
 
 	return status
+}
+
+func inferPhaseFromObject(obj *unstructured.Unstructured, now func() time.Time) string {
+	if !obj.GetDeletionTimestamp().IsZero() {
+		return "deleting"
+	}
+
+	created := obj.GetCreationTimestamp().Time
+	if created.IsZero() {
+		return "unknown"
+	}
+
+	durationValue, found, _ := unstructured.NestedString(obj.Object, "spec", "duration")
+	if !found || durationValue == "" {
+		return "running"
+	}
+
+	duration, err := time.ParseDuration(durationValue)
+	if err != nil {
+		return "running"
+	}
+	if duration <= 0 {
+		return "completed"
+	}
+	if !now().Before(created.Add(duration)) {
+		return "completed"
+	}
+	return "running"
 }

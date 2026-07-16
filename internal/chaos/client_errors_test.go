@@ -99,3 +99,29 @@ func TestStatusFromObject(t *testing.T) {
 	require.Nil(t, status.StartTime)
 	require.Nil(t, status.EndTime)
 }
+
+func TestStatusFromObjectInfersPhaseFromDuration(t *testing.T) {
+	created := time.Date(2026, 7, 16, 20, 0, 0, 0, time.UTC)
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "chaos-mesh.org/v1alpha1",
+		"kind":       "StressChaos",
+		"metadata": map[string]any{
+			"name":              "stress",
+			"namespace":         "cluster-probe",
+			"creationTimestamp": created.Format(time.RFC3339),
+		},
+		"spec": map[string]any{
+			"duration": "30s",
+		},
+	}}
+
+	status := statusFromObjectAt(obj, func() time.Time {
+		return created.Add(10 * time.Second)
+	})
+	require.Equal(t, "running", status.Phase)
+
+	status = statusFromObjectAt(obj, func() time.Time {
+		return created.Add(31 * time.Second)
+	})
+	require.Equal(t, "completed", status.Phase)
+}
