@@ -38,6 +38,7 @@ func (r *Router) Routes() http.Handler {
 		router.Route("/scenarios", func(router chi.Router) {
 			router.Post("/", r.scenarios.CreateScenario)
 			router.Get("/", r.scenarios.ListScenarios)
+			router.Get("/{id}/events", r.scenarios.ListScenarioEvents)
 			router.Get("/{id}", r.scenarios.GetScenario)
 			router.Put("/{id}/stop", r.scenarios.StopScenario)
 		})

@@ -385,6 +385,71 @@ func TestScenarioGetFiltersLifecycleRows(t *testing.T) {
 	}
 }
 
+func TestScenarioEvents(t *testing.T) {
+	created := time.Now().UTC()
+	queuedPayload := []byte(`{
+  "id": "id",
+  "name": "test",
+  "profile": {
+    "rps": 1,
+    "duration": 1000000000,
+    "payload_size_bytes": 0,
+    "concurrency": 1,
+    "target_queue": "workload.high",
+    "workload_type": "db_write"
+  },
+  "status": "queued",
+  "created_at": "` + created.Format(time.RFC3339Nano) + `"
+}`)
+	completedPayload := []byte(`{
+  "id": "id",
+  "name": "test",
+  "profile": {
+    "rps": 1,
+    "duration": 1000000000,
+    "payload_size_bytes": 0,
+    "concurrency": 1,
+    "target_queue": "workload.high",
+    "workload_type": "db_write"
+  },
+  "status": "completed",
+  "created_at": "` + created.Add(time.Second).Format(time.RFC3339Nano) + `"
+}`)
+
+	store := &mockPostgres{
+		queryFn: func(ctx context.Context, sql string, args ...any) (Rows, error) {
+			if !strings.Contains(sql, "ORDER BY created_at ASC") {
+				t.Fatalf("expected chronological scenario events query, got %s", sql)
+			}
+			return &rowsStub{rows: [][]any{
+				{"id", queuedPayload, created},
+				{"id", completedPayload, created.Add(time.Second)},
+			}}, nil
+		},
+	}
+	publisher := &mockPublisher{
+		publishFn: func(ctx context.Context, exchange, routingKey string, body []byte) error {
+			return nil
+		},
+	}
+	redis := &mockRedis{
+		getFn: func(ctx context.Context, key string) (string, error) { return "0", nil },
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/id/events", nil)
+	rec := httptest.NewRecorder()
+
+	buildTestServer(store, redis, defaultMongo(), publisher, defaultChaosEngine()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"status": "queued"`) ||
+		!strings.Contains(rec.Body.String(), `"status": "completed"`) {
+		t.Fatalf("expected queued and completed events, got %s", rec.Body.String())
+	}
+}
+
 func TestLogsStream(t *testing.T) {
 	store := &mockPostgres{}
 	publisher := &mockPublisher{

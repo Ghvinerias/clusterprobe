@@ -54,6 +54,24 @@ func (m *mockAPI) GetScenario(ctx context.Context, id string) (workload.Scenario
 	}, nil
 }
 
+func (m *mockAPI) ListScenarioEvents(ctx context.Context, id string) ([]workload.ScenarioResponse, error) {
+	events := make([]workload.ScenarioResponse, 0, len(m.scenarios))
+	for _, scenario := range m.scenarios {
+		if scenario.ID == id {
+			events = append(events, scenario)
+		}
+	}
+	if len(events) > 0 {
+		return events, nil
+	}
+	return []workload.ScenarioResponse{{
+		ID:        id,
+		Name:      "scenario",
+		Status:    "running",
+		CreatedAt: time.Now(),
+	}}, nil
+}
+
 func (m *mockAPI) StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
 	return workload.ScenarioResponse{ID: id, Status: "stopped", CreatedAt: time.Now()}, nil
 }

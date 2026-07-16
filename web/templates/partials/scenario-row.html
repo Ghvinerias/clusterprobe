@@ -1,7 +1,7 @@
 {{define "scenario-row"}}
 <tr id="scenario-{{.ID}}" {{if not .Terminal}}hx-get="/scenarios/{{.ID}}/row" hx-trigger="every 2s" hx-swap="outerHTML"{{end}}>
-  <td>{{.ID}}</td>
-  <td>{{.Name}}</td>
+  <td><a href="/scenarios/{{.ID}}">{{.ID}}</a></td>
+  <td><a href="/scenarios/{{.ID}}">{{.Name}}</a></td>
   <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
   <td>{{.Profile.WorkloadType}}</td>
   <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>

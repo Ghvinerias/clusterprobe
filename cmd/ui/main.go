@@ -90,6 +90,7 @@ func main() {
 	router.Get("/scenarios", server.ListScenarios)
 	router.Get("/scenarios/new", server.NewScenario)
 	router.Post("/scenarios", server.CreateScenario)
+	router.Get("/scenarios/{id}", server.ScenarioDetail)
 	router.Get("/scenarios/{id}/row", server.ScenarioRow)
 	router.Post("/scenarios/{id}/stop", server.StopScenario)
 	router.Get("/chaos", server.ListChaos)

@@ -57,6 +57,15 @@ func (c *apiClient) GetScenario(ctx context.Context, id string) (workload.Scenar
 	return out, nil
 }
 
+func (c *apiClient) ListScenarioEvents(ctx context.Context, id string) ([]workload.ScenarioResponse, error) {
+	var out []workload.ScenarioResponse
+	path := fmt.Sprintf("/api/v1/scenarios/%s/events", id)
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *apiClient) StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
 	var out workload.ScenarioResponse
 	path := fmt.Sprintf("/api/v1/scenarios/%s/stop", id)

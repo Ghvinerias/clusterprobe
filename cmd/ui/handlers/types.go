@@ -12,6 +12,7 @@ import (
 type APIClient interface {
 	ListScenarios(ctx context.Context) ([]workload.ScenarioResponse, error)
 	GetScenario(ctx context.Context, id string) (workload.ScenarioResponse, error)
+	ListScenarioEvents(ctx context.Context, id string) ([]workload.ScenarioResponse, error)
 	CreateScenario(ctx context.Context, req workload.ScenarioRequest) (workload.ScenarioResponse, error)
 	StopScenario(ctx context.Context, id string) (workload.ScenarioResponse, error)
 	ListExperiments(ctx context.Context) ([]workload.ChaosExperimentResponse, error)
@@ -67,6 +68,14 @@ type ScenarioListData struct {
 	Title     string
 	Scenarios []ScenarioView
 	Banner    *Banner
+}
+
+// ScenarioDetailData renders a scenario detail page.
+type ScenarioDetailData struct {
+	Active   string
+	Title    string
+	Scenario ScenarioView
+	Events   []ScenarioView
 }
 
 // ChaosListData renders chaos list.

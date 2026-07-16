@@ -20,6 +20,8 @@ const (
 		") latest ORDER BY created_at DESC LIMIT 50"
 	getScenarioQuery = "SELECT scenario_id, payload, created_at FROM scenario_events " +
 		"WHERE scenario_id=$1 ORDER BY created_at DESC, id DESC LIMIT 1"
+	listScenarioEventsQuery = "SELECT scenario_id, payload, created_at FROM scenario_events " +
+		"WHERE scenario_id=$1 ORDER BY created_at ASC, id ASC"
 )
 
 // ScenarioHandler handles scenario endpoints.
@@ -145,6 +147,57 @@ func (h *ScenarioHandler) GetScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := writeJSON(w, http.StatusOK, resp); err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+// ListScenarioEvents handles GET /api/v1/scenarios/{id}/events.
+func (h *ScenarioHandler) ListScenarioEvents(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		errorResponse(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	rows, err := h.store.Query(r.Context(), listScenarioEventsQuery, id)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, "list scenario events")
+		return
+	}
+	defer rows.Close()
+
+	responses := make([]workload.ScenarioResponse, 0)
+	for rows.Next() {
+		var scenarioID string
+		var payload []byte
+		var created time.Time
+		if err := rows.Scan(&scenarioID, &payload, &created); err != nil {
+			errorResponse(w, http.StatusInternalServerError, "scan scenario event")
+			return
+		}
+		var resp workload.ScenarioResponse
+		if err := json.Unmarshal(payload, &resp); err != nil {
+			errorResponse(w, http.StatusInternalServerError, "decode scenario event")
+			return
+		}
+		if resp.ID == "" {
+			resp.ID = scenarioID
+		}
+		if resp.CreatedAt.IsZero() {
+			resp.CreatedAt = created
+		}
+		responses = append(responses, resp)
+	}
+	if err := rows.Err(); err != nil {
+		errorResponse(w, http.StatusInternalServerError, "list scenario events")
+		return
+	}
+	if len(responses) == 0 {
+		errorResponse(w, http.StatusNotFound, "scenario not found")
+		return
+	}
+
+	if err := writeJSON(w, http.StatusOK, responses); err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 	}
 }

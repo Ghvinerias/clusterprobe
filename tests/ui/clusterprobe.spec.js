@@ -72,6 +72,14 @@ test.describe.serial('ClusterProbe browser smoke', () => {
     await expect(page).toHaveTitle(/Scenarios \| ClusterProbe/);
     await expect(page.locator(`#scenario-${scenario.id}`)).toContainText(name);
     await expect(page.locator(`#scenario-${scenario.id}`)).toContainText('completed');
+
+    await page.locator(`#scenario-${scenario.id} a`, { hasText: name }).click();
+    await expect(page).toHaveTitle(/Scenario \| ClusterProbe/);
+    await expect(page.getByRole('heading', { name: `Scenario ${name}` })).toBeVisible();
+    const lifecycle = page.locator('section.card').filter({ hasText: 'Lifecycle Events' });
+    await expect(lifecycle).toBeVisible();
+    await expect(lifecycle.getByText('queued')).toBeVisible();
+    await expect(lifecycle.getByText('completed')).toBeVisible();
   });
 
   test('chaos experiment reaches completed status and appears in the UI', async ({ page }) => {

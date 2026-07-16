@@ -1,0 +1,62 @@
+{{define "content"}}
+<div class="header">
+  <div>
+    <h2>Scenario {{.Scenario.Name}}</h2>
+    <span class="badge {{.Scenario.StatusClass}}">{{.Scenario.Status}}</span>
+  </div>
+  <a class="btn" href="/scenarios">Back to Scenarios</a>
+</div>
+
+<section class="card">
+  <div class="stat-grid">
+    <div class="stat-block">
+      <span class="label">Scenario ID</span>
+      <span class="value">{{.Scenario.ID}}</span>
+      <span class="badge">identity</span>
+    </div>
+    <div class="stat-block">
+      <span class="label">Workload</span>
+      <span class="value">{{.Scenario.Profile.WorkloadType}}</span>
+      <span class="badge">profile</span>
+    </div>
+    <div class="stat-block">
+      <span class="label">Target Queue</span>
+      <span class="value">{{.Scenario.Profile.TargetQueue}}</span>
+      <span class="badge">routing</span>
+    </div>
+    <div class="stat-block">
+      <span class="label">RPS</span>
+      <span class="value">{{.Scenario.Profile.RPS}}</span>
+      <span class="badge">load</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="header">
+    <h3>Lifecycle Events</h3>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Workload</th>
+        <th>Queue</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Events}}
+        <tr>
+          <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
+          <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+          <td>{{.Profile.WorkloadType}}</td>
+          <td>{{.Profile.TargetQueue}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="4">No lifecycle events found.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

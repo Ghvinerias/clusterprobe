@@ -70,6 +70,45 @@ func (s *Server) NewScenario(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ScenarioDetail renders one scenario with lifecycle history.
+func (s *Server) ScenarioDetail(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.scenarios.detail")
+	defer span.End()
+	defer s.logRequest(r, "scenarios_detail")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	scenario, err := s.api.GetScenario(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load scenario", http.StatusBadGateway)
+		return
+	}
+	events, err := s.api.ListScenarioEvents(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load scenario events", http.StatusBadGateway)
+		return
+	}
+
+	eventViews := make([]ScenarioView, 0, len(events))
+	for _, event := range events {
+		eventViews = append(eventViews, buildScenarioView(event))
+	}
+
+	data := ScenarioDetailData{
+		Active:   "scenarios",
+		Title:    "Scenario | ClusterProbe",
+		Scenario: buildScenarioView(scenario),
+		Events:   eventViews,
+	}
+	if err := s.RenderTemplate(w, "scenario-detail", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 // CreateScenario submits a new scenario to the API.
 func (s *Server) CreateScenario(w http.ResponseWriter, r *http.Request) {
 	ctx, span := s.newSpan(r.Context(), "ui.scenarios.create")
