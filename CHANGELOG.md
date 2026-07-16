@@ -77,6 +77,17 @@
   cluster startup.
 - Added chaos experiment status fallback from Kubernetes object duration when
   Chaos Mesh does not publish a `status.phase` field.
+- Added Playwright browser smoke coverage for dashboard, scenarios, chaos, and
+  logs against a live local deployment.
+- Added scenario and chaos experiment detail pages with lifecycle/configuration
+  visibility from the UI.
+- Added `make validate-local` and `make validate-local-k8s` for repeatable full
+  local validation across Go, integration, Helm, Kustomize, smoke, and browser
+  checks.
+- Added a Worker readiness endpoint that only reports ready after RabbitMQ
+  consumers are initialized.
+- Excluded local dependencies, reports, screenshots, and handoff artifacts from
+  Docker build contexts.
 
 ## v0.1.0
 
