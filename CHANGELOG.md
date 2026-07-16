@@ -90,6 +90,8 @@
   Docker build contexts.
 - Fixed scenario Stop handling so stopped scenarios preserve their name/profile
   metadata and Worker terminal updates do not overwrite a user-requested stop.
+- Expanded local product smoke validation to cover scenario Stop API behavior
+  and stopped scenario rendering in the UI.
 
 ## v0.1.0
 

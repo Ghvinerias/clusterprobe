@@ -95,11 +95,57 @@ fi
 echo "smoke: metrics snapshot"
 curl_json "${API_URL}/api/v1/metrics/snapshot" | jq -e '.snapshot.scenario_id == "'"${scenario_id}"'"' >/dev/null
 
+stop_scenario_name="smoke-stop-$(date +%s)"
+stop_scenario_payload="$(
+  jq -n \
+    --arg name "$stop_scenario_name" \
+    --arg workload "$WORKLOAD_TYPE" \
+    '{
+      name: $name,
+      profile: {
+        rps: 1,
+        duration: 20000000000,
+        payload_size_bytes: 0,
+        concurrency: 1,
+        target_queue: "workload.low",
+        workload_type: $workload
+      }
+    }'
+)"
+
+echo "smoke: create stoppable scenario ${stop_scenario_name}"
+stop_scenario_id="$(
+  curl_json \
+    -H "Content-Type: application/json" \
+    -X POST \
+    --data-binary "$stop_scenario_payload" \
+    "${API_URL}/api/v1/scenarios" | jq -r '.id'
+)"
+
+if [[ -z "$stop_scenario_id" || "$stop_scenario_id" == "null" ]]; then
+  echo "stoppable scenario id missing" >&2
+  exit 1
+fi
+
+echo "smoke: stop scenario ${stop_scenario_id}"
+curl_json \
+  -H "Content-Type: application/json" \
+  -X PUT \
+  "${API_URL}/api/v1/scenarios/${stop_scenario_id}/stop" |
+  jq -e '.status == "stopped" and .name == "'"${stop_scenario_name}"'" and .profile.target_queue == "workload.low"' >/dev/null
+
+curl_json "${API_URL}/api/v1/scenarios/${stop_scenario_id}" |
+  jq -e '.status == "stopped" and .name == "'"${stop_scenario_name}"'"' >/dev/null
+
 echo "smoke: logs stream"
 logs_output="$(curl --max-time 5 -fsS -N "${UI_URL}/logs/stream" 2>/dev/null || true)"
 grep -q "event: logs" <<<"$logs_output"
 
 echo "smoke: scenarios UI includes scenario"
 curl -fsS "${UI_URL}/scenarios" | grep -q "$scenario_id"
+
+echo "smoke: scenarios UI includes stopped scenario"
+curl -fsS "${UI_URL}/scenarios" | grep -q "$stop_scenario_id"
+curl -fsS "${UI_URL}/scenarios" | grep -q "stopped"
 
 echo "smoke: passed"
