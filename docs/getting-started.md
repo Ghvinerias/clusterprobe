@@ -99,6 +99,24 @@ Ryuk sidecar for local runs where the host socket path cannot be mounted inside
 the Colima VM. Set `CHROMIUM_EXECUTABLE_PATH` if Chromium is installed outside
 `/Applications/Chromium.app`.
 
+To build local API/Worker/UI images, install or upgrade the Helm release, wait
+for Kubernetes readiness, create temporary port-forwards, and then run the full
+validation suite in one command:
+
+```bash
+make validate-local-k8s
+```
+
+Useful overrides:
+
+```bash
+TAG=local-dev \
+API_PORT=19080 \
+UI_PORT=19081 \
+KEEP_PORT_FORWARDS=true \
+make validate-local-k8s
+```
+
 ## First workload scenario
 
 Create a short mixed workload through the API:
