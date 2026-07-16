@@ -116,6 +116,14 @@ test.describe.serial('ClusterProbe browser smoke', () => {
     await expect(page.locator(`#experiment-${experiment.id}`)).toContainText(name);
     await expect(page.locator(`#experiment-${experiment.id}`)).toContainText('completed');
 
+    await page.locator(`#experiment-${experiment.id} a`, { hasText: name }).first().click();
+    await expect(page).toHaveTitle(/Chaos Experiment \| ClusterProbe/);
+    await expect(page.getByRole('heading', { name: `Chaos Experiment ${name}` })).toBeVisible();
+    const config = page.locator('section.card').filter({ hasText: 'Experiment Config' });
+    await expect(config).toBeVisible();
+    await expect(config.getByRole('cell', { name: 'stress' })).toBeVisible();
+    await expect(config.getByRole('cell', { name: 'app.kubernetes.io/component=worker' })).toBeVisible();
+
     const deleted = await api.delete(`/api/v1/chaos/experiments/${experiment.id}`);
     expect([204, 404]).toContain(deleted.status());
   });

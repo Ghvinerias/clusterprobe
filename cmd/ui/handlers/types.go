@@ -85,6 +85,14 @@ type ChaosListData struct {
 	Experiments []ExperimentView
 }
 
+// ChaosDetailData renders one chaos experiment.
+type ChaosDetailData struct {
+	Active     string
+	Title      string
+	Experiment ExperimentView
+	Config     map[string]string
+}
+
 // FormData renders forms.
 type FormData struct {
 	Active       string

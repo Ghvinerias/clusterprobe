@@ -96,6 +96,7 @@ func main() {
 	router.Get("/chaos", server.ListChaos)
 	router.Get("/chaos/new", server.NewChaos)
 	router.Post("/chaos", server.CreateChaos)
+	router.Get("/chaos/{id}", server.ChaosDetail)
 	router.Get("/chaos/{id}/status", server.ChaosStatus)
 	router.Delete("/chaos/{id}", server.DeleteChaos)
 	router.Get("/logs", server.Logs)

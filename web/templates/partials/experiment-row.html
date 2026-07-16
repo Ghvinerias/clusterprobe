@@ -1,7 +1,7 @@
 {{define "experiment-row"}}
 <tr id="experiment-{{.ID}}">
-  <td>{{.ID}}</td>
-  <td>{{.Name}}</td>
+  <td><a href="/chaos/{{.ID}}">{{.ID}}</a></td>
+  <td><a href="/chaos/{{.ID}}">{{.Name}}</a></td>
   <td>{{.Scenario}}</td>
   <td>{{template "experiment-status" .}}</td>
   <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>

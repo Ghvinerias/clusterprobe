@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="header">
+  <div>
+    <h2>Chaos Experiment {{.Experiment.Name}}</h2>
+    <span class="badge {{.Experiment.StatusClass}}">{{.Experiment.Status}}</span>
+  </div>
+  <a class="btn" href="/chaos">Back to Chaos</a>
+</div>
+
+<section class="card">
+  <div class="stat-grid">
+    <div class="stat-block">
+      <span class="label">Experiment ID</span>
+      <span class="value">{{.Experiment.ID}}</span>
+      <span class="badge">identity</span>
+    </div>
+    <div class="stat-block">
+      <span class="label">Scenario</span>
+      <span class="value">{{.Experiment.Scenario}}</span>
+      <span class="badge">scope</span>
+    </div>
+    <div class="stat-block">
+      <span class="label">Status</span>
+      <span class="value">{{.Experiment.Status}}</span>
+      <span class="badge {{.Experiment.StatusClass}}">live</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="header">
+    <h3>Experiment Config</h3>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $key, $value := .Config}}
+        <tr>
+          <td>{{$key}}</td>
+          <td>{{$value}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="2">No config found.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}

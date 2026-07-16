@@ -54,6 +54,35 @@ func (s *Server) NewChaos(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ChaosDetail renders one chaos experiment with configuration details.
+func (s *Server) ChaosDetail(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.chaos.detail")
+	defer span.End()
+	defer s.logRequest(r, "chaos_detail")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	experiment, err := s.api.GetExperiment(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load experiment", http.StatusBadGateway)
+		return
+	}
+
+	data := ChaosDetailData{
+		Active:     "chaos",
+		Title:      "Chaos Experiment | ClusterProbe",
+		Experiment: buildExperimentView(experiment),
+		Config:     experiment.Config,
+	}
+	if err := s.RenderTemplate(w, "chaos-detail", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 // ChaosStatus renders a live status badge for one chaos experiment.
 func (s *Server) ChaosStatus(w http.ResponseWriter, r *http.Request) {
 	ctx, span := s.newSpan(r.Context(), "ui.chaos.status")
