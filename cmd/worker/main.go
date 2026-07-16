@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -116,10 +117,11 @@ func main() {
 	redis := &redisAdapter{client: redisClient}
 
 	generators := buildGenerators(store)
+	var consumersReady atomic.Bool
 
 	server := &http.Server{
 		Addr:              cfg.ChaosListenAddr,
-		Handler:           buildHTTPServer(metricsHandler),
+		Handler:           buildHTTPServer(metricsHandler, consumersReady.Load),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -152,7 +154,10 @@ func main() {
 			workCtx := context.WithoutCancel(msgCtx)
 			return handleMessage(workCtx, msg, generators, store, redis, producer)
 		}
-		consumerErrCh <- startConsumers(ctx, workerCount, queuePicker, consumerFactory, handler)
+		consumerErrCh <- startConsumers(ctx, workerCount, queuePicker, consumerFactory, handler, func() {
+			consumersReady.Store(true)
+			slog.Info("worker consumers ready", "worker_count", workerCount)
+		})
 	}()
 
 	<-ctx.Done()
@@ -168,12 +173,20 @@ func main() {
 	}
 }
 
-func buildHTTPServer(metricsHandler http.Handler) http.Handler {
+func buildHTTPServer(metricsHandler http.Handler, ready func() bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metricsHandler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if ready != nil && ready() {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+			return
+		}
+		http.Error(w, "consumer pool not ready", http.StatusServiceUnavailable)
 	})
 	return mux
 }
@@ -455,6 +468,7 @@ func startConsumers(
 	queuePicker func(int) string,
 	consumerFactory func() (consumer, error),
 	handler func(context.Context, amqp.Delivery) error,
+	onReady func(),
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, workerCount)
@@ -473,6 +487,9 @@ func startConsumers(
 				errCh <- fmt.Errorf("consume %s: %w", queue, err)
 			}
 		}(queue, c)
+	}
+	if onReady != nil {
+		onReady()
 	}
 
 	<-ctx.Done()

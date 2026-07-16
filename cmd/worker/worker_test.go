@@ -284,7 +284,7 @@ func TestStartConsumersGracefulShutdown(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- startConsumers(ctx, 1, queuePicker, consumerFactory, handler)
+		errCh <- startConsumers(ctx, 1, queuePicker, consumerFactory, handler, nil)
 	}()
 
 	<-started
