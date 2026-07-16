@@ -1,0 +1,12 @@
+{
+  "name": "clusterprobe",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Browser smoke tests for ClusterProbe",
+  "scripts": {
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}

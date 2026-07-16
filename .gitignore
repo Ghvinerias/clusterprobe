@@ -26,6 +26,12 @@ coverage.out
 # Docker
 *.tar
 
+# Browser test artifacts
+.playwright-mcp/
+node_modules/
+playwright-report/
+test-results/
+
 # Env / secrets
 .env
 .env.*
