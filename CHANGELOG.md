@@ -88,6 +88,8 @@
   consumers are initialized.
 - Excluded local dependencies, reports, screenshots, and handoff artifacts from
   Docker build contexts.
+- Fixed scenario Stop handling so stopped scenarios preserve their name/profile
+  metadata and Worker terminal updates do not overwrite a user-requested stop.
 
 ## v0.1.0
 
