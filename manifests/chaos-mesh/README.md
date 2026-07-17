@@ -27,19 +27,30 @@ kubectl apply -f chaos-mesh-daemon.yaml
 
 ## Experiment library
 
-The `experiments/` directory contains reusable Chaos Mesh experiments mapped to ClusterProbe workload types.
+The `experiments/` directory contains reusable Chaos Mesh experiments mapped to
+ClusterProbe workload types.
 
-| Experiment | Primary workload coverage | Failure mode |
-| --- | --- | --- |
-| `cpu-stress.yaml` | `cpu_burn`, `mixed` | CPU saturation on Worker pods |
-| `memory-stress-workers.yaml` | `mem_alloc`, `mixed` | Memory pressure on Worker pods |
-| `io-fault.yaml` | `db_write`, `db_read`, `mixed` | Postgres storage latency |
-| `network-delay.yaml` | `db_write`, `db_read`, `mixed` | Worker to Postgres latency |
-| `network-loss-worker-postgres.yaml` | `db_write`, `db_read`, `mixed` | Worker to Postgres packet loss |
-| `network-partition-api-rabbitmq.yaml` | scenario creation and scheduling | API to RabbitMQ partition |
-| `network-partition-worker-rabbitmq.yaml` | queue draining and Worker recovery | Worker to RabbitMQ partition |
-| `pod-kill-api.yaml` | API availability | API pod kill |
-| `pod-kill-worker.yaml` | all workload types | Worker pod kill |
+| Experiment | Target | Workload coverage | Expected effect |
+| --- | --- | --- | --- |
+| `cpu-stress.yaml` | Worker pods | `cpu_burn`, `mixed` | Worker CPU saturation lowers throughput while readiness stays healthy. |
+| `memory-stress-workers.yaml` | Worker pods | `mem_alloc`, `mixed` | Worker memory pressure is visible without exceeding pod limits. |
+| `io-fault.yaml` | Postgres pod volume | `db_write`, `db_read`, `mixed` | Postgres storage latency increases query duration without corruption. |
+| `network-delay.yaml` | Worker to Postgres | `db_write`, `db_read`, `mixed` | DB workloads slow down and recover when latency ends. |
+| `network-loss-worker-postgres.yaml` | Worker to Postgres | `db_write`, `db_read`, `mixed` | Error rate becomes visible and scenarios avoid stuck running states. |
+| `network-partition-api-rabbitmq.yaml` | API to RabbitMQ | scenario creation and scheduling | API reports transient messaging errors and reconnects after partition. |
+| `network-partition-worker-rabbitmq.yaml` | Worker to RabbitMQ | queue draining and Worker recovery | Queued work remains durable and workers resume consumption. |
+| `pod-kill-api.yaml` | API pod | API availability | API deployment replaces a killed pod and scenario creation recovers. |
+| `pod-kill-worker.yaml` | Worker pod | all workload types | Worker deployment replaces a killed pod and queue depth drains. |
+
+Workload type coverage summary:
+
+| Workload type | Recommended experiments |
+| --- | --- |
+| `cpu_burn` | `cpu-stress.yaml`, `pod-kill-worker.yaml` |
+| `mem_alloc` | `memory-stress-workers.yaml`, `pod-kill-worker.yaml` |
+| `db_write` | `io-fault.yaml`, `network-delay.yaml`, `network-loss-worker-postgres.yaml`, `pod-kill-worker.yaml` |
+| `db_read` | `io-fault.yaml`, `network-delay.yaml`, `network-loss-worker-postgres.yaml`, `pod-kill-worker.yaml` |
+| `mixed` | `cpu-stress.yaml`, `memory-stress-workers.yaml`, `io-fault.yaml`, `network-delay.yaml`, `network-loss-worker-postgres.yaml`, `pod-kill-worker.yaml` |
 
 Apply an experiment with `chaos-ctrl`:
 
