@@ -251,7 +251,7 @@ func (s *Server) renderScenarioRow(w http.ResponseWriter, view ScenarioView) err
 		return fmt.Errorf("template not found: scenarios")
 	}
 	if err := tmpl.ExecuteTemplate(w, "scenario-row", view); err != nil {
-		return err
+		return fmt.Errorf("execute scenario row template: %w", err)
 	}
 	return nil
 }

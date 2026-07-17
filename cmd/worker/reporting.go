@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	insertScenarioQuery   = "INSERT INTO scenario_events (scenario_id, payload) VALUES ($1, $2)"
-	latestScenarioQuery   = "SELECT payload FROM scenario_events WHERE scenario_id=$1 ORDER BY created_at DESC, id DESC LIMIT 1"
+	insertScenarioQuery = "INSERT INTO scenario_events (scenario_id, payload) VALUES ($1, $2)"
+	latestScenarioQuery = "SELECT payload FROM scenario_events WHERE scenario_id=$1 " +
+		"ORDER BY created_at DESC, id DESC LIMIT 1"
 	resultsExchange       = "clusterprobe.events"
 	metricsSnapshotInsert = "INSERT INTO metrics_snapshots (snapshot) VALUES ($1)"
 )

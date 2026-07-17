@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Updated Go dependency and build toolchain baselines to remediate vulnerability scan findings.
+- Expanded local review gates with vulnerability, secret, and image scanning targets.
 - Expanded the Chaos Mesh experiment matrix with targets, workload coverage,
   and expected effects.
 - Rendered friendly UI 404 pages for missing scenario and chaos detail resources.

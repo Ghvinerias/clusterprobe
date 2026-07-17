@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -67,7 +68,7 @@ func (h *StatusHandler) scenarioCounts(ctx context.Context) (int64, int64, error
 	var running int64
 	var completed int64
 	if err := h.store.QueryRow(ctx, scenarioCountsQuery).Scan(&running, &completed); err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("scan scenario counts: %w", err)
 	}
 	return running, completed, nil
 }

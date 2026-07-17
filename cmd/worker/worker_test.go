@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ type cancelAwareGenerator struct {
 func (g cancelAwareGenerator) Execute(ctx context.Context, params workload.WorkloadParams) (workload.Result, error) {
 	close(g.called)
 	<-ctx.Done()
-	return workload.Result{Duration: time.Millisecond}, ctx.Err()
+	return workload.Result{Duration: time.Millisecond}, fmt.Errorf("context canceled: %w", ctx.Err())
 }
 
 type fakeStore struct {

@@ -118,7 +118,7 @@ func parseArgs(args []string, stdout io.Writer, stderr io.Writer) (commandConfig
 
 	globalArgs, command, commandArgs := splitCommandArgs(args)
 	if err := flags.Parse(globalArgs); err != nil {
-		return commandConfig{}, "", err
+		return commandConfig{}, "", fmt.Errorf("parse global flags: %w", err)
 	}
 	if command == "" {
 		printUsage(stdout)
@@ -199,7 +199,7 @@ func runApply(ctx context.Context, cfg commandConfig, client chaosAPI) error {
 	applyFlags.StringVar(&cfg.file, "f", "", "experiment YAML file")
 	applyFlags.StringVar(&cfg.file, "file", "", "experiment YAML file")
 	if err := applyFlags.Parse(cfg.args); err != nil {
-		return err
+		return fmt.Errorf("parse apply flags: %w", err)
 	}
 	if cfg.file == "" {
 		return errors.New("apply requires -f/--file")
@@ -300,14 +300,18 @@ func writeOutput(w io.Writer, format string, payload any) error {
 		if err != nil {
 			return fmt.Errorf("encode json: %w", err)
 		}
-		_, err = fmt.Fprintf(w, "%s\n", encoded)
-		return err
+		if _, err := fmt.Fprintf(w, "%s\n", encoded); err != nil {
+			return fmt.Errorf("write json output: %w", err)
+		}
+		return nil
 	}
 
 	switch value := payload.(type) {
 	case chaos.ExperimentStatus:
-		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", value.Name, value.Namespace, value.Kind, value.Phase)
-		return err
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", value.Name, value.Namespace, value.Kind, value.Phase); err != nil {
+			return fmt.Errorf("write status output: %w", err)
+		}
+		return nil
 	case []chaos.ExperimentStatus:
 		for _, status := range value {
 			if err := writeOutput(w, "text", status); err != nil {
@@ -320,15 +324,19 @@ func writeOutput(w io.Writer, format string, payload any) error {
 		for key, val := range value {
 			parts = append(parts, fmt.Sprintf("%s=%s", key, val))
 		}
-		_, err := fmt.Fprintln(w, strings.Join(parts, " "))
-		return err
+		if _, err := fmt.Fprintln(w, strings.Join(parts, " ")); err != nil {
+			return fmt.Errorf("write map output: %w", err)
+		}
+		return nil
 	default:
 		encoded, err := json.Marshal(payload)
 		if err != nil {
 			return fmt.Errorf("encode output: %w", err)
 		}
-		_, err = fmt.Fprintf(w, "%s\n", encoded)
-		return err
+		if _, err := fmt.Fprintf(w, "%s\n", encoded); err != nil {
+			return fmt.Errorf("write default output: %w", err)
+		}
+		return nil
 	}
 }
 
