@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added opt-in live Chaos Mesh smoke validation for Worker-targeted stress experiments.
 - Added release image verification and OCI revision labels for service images.
 - Added live HTMX refresh for scenario lifecycle events on scenario detail pages.
 - Raised every `internal/` package above the 70% coverage threshold.

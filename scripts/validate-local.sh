@@ -40,6 +40,9 @@ run_step "helm lint" helm lint deploy/helm/clusterprobe
 run_step "helm template" bash -c "helm template clusterprobe deploy/helm/clusterprobe --namespace \"$HELM_NAMESPACE\" >/tmp/clusterprobe-rendered.yaml"
 run_step "kustomize render" kubectl kustomize "$KUSTOMIZE_DIR" $KUSTOMIZE_FLAGS >/tmp/clusterprobe-kustomize-rendered.yaml
 run_step "product smoke" ./scripts/smoke-local.sh
+if [[ "${CHAOS_SMOKE:-false}" == "true" ]]; then
+  run_step "live chaos smoke" ./scripts/smoke-chaos-live.sh
+fi
 run_step "browser smoke" npm run test:ui
 run_step "diff check" git diff --check
 
