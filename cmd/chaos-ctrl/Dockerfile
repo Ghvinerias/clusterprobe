@@ -22,6 +22,16 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
+ARG VERSION=dev
+ARG COMMIT_SHA=unknown
+ARG BUILD_DATE=unknown
+
+LABEL org.opencontainers.image.title="clusterprobe-chaos-ctrl" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT_SHA}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/Ghvinerias/clusterprobe"
+
 WORKDIR /
 COPY --from=builder /out/clusterprobe-chaos-ctrl /clusterprobe-chaos-ctrl
 

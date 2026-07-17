@@ -117,6 +117,30 @@ KEEP_PORT_FORWARDS=true \
 make validate-local-k8s
 ```
 
+## Release image verification
+
+Before promoting a release tag, verify that all expected service images exist:
+
+```bash
+TAG=$(git rev-parse --short HEAD) ./scripts/verify-release-images.sh
+```
+
+The script checks `api`, `worker`, `ui`, and `chaos-ctrl` under
+`docker.io/slickg` by default. Override the registry or commit metadata when
+verifying another build:
+
+```bash
+REGISTRY=docker.io/slickg \
+TAG=v0.1.0 \
+COMMIT_SHA=570a350 \
+./scripts/verify-release-images.sh
+```
+
+When images are already local, the script validates their
+`org.opencontainers.image.revision` label. Set `VERIFY_PULL=true` to pull remote
+images first and validate labels locally. The `chaos-ctrl` image is also checked
+against its embedded `version -o json` build metadata.
+
 ## First workload scenario
 
 Create a short mixed workload through the API:
