@@ -154,3 +154,7 @@ not include KEDA resources.
 | `chaos.daemon.image.tag` | string | `v2.7.0` | Chaos Mesh daemon tag. |
 | `chaos.daemon.runtime` | string | `containerd` | Container runtime used by `chaos-daemon`. |
 | `chaos.daemon.runtimeSocketPath` | string | `/var/run/containerd/containerd.sock` | Runtime socket path mounted from the node through `/var/run`. |
+
+For local Colima/k3s validation, `make validate-local-k8s` deploys with
+`chaos.enabled=true` and verifies the bundled controller and daemon roll out.
+Set `CHAOS_SMOKE=true` to also run the opt-in live Worker-targeted stress smoke.

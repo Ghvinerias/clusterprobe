@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refreshed product readiness docs for local validation, Playwright, stop
+  cancellation, and opt-in live chaos smoke.
 - Added opt-in live Chaos Mesh smoke validation for Worker-targeted stress experiments.
 - Added release image verification and OCI revision labels for service images.
 - Added live HTMX refresh for scenario lifecycle events on scenario detail pages.

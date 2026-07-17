@@ -7,6 +7,9 @@ ClusterProbe can run as a Helm release for local validation or as Kustomize over
 - Kubernetes 1.28+
 - Helm 3.12+
 - `kubectl`
+- Docker
+- Node.js/npm for Playwright browser smoke tests
+- Chromium, or `CHROMIUM_EXECUTABLE_PATH` pointing at a Chromium-compatible browser
 - A default storage class for PVC-backed components
 - Chaos Mesh support if you enable real chaos experiments
 - ArgoCD only if you use the manifests in `deploy/argocd`
@@ -83,9 +86,9 @@ The smoke script verifies:
 - UI log SSE stream availability
 - scenarios UI rendering of the created scenario
 
-For the full local validation suite, including Go tests, race tests,
-Testcontainers integration tests, Helm/Kustomize rendering, product smoke, and
-browser smoke, run:
+For the full local validation suite against already reachable API/UI endpoints,
+including Go tests, race tests, Testcontainers integration tests,
+Helm/Kustomize rendering, product smoke, and browser smoke, run:
 
 ```bash
 API_URL=http://127.0.0.1:8080 \
@@ -99,13 +102,15 @@ Ryuk sidecar for local runs where the host socket path cannot be mounted inside
 the Colima VM. Set `CHROMIUM_EXECUTABLE_PATH` if Chromium is installed outside
 `/Applications/Chromium.app`.
 
-To build local API/Worker/UI images, install or upgrade the Helm release, wait
-for Kubernetes readiness, create temporary port-forwards, and then run the full
-validation suite in one command:
+The preferred full local validation command for Colima/k3s is:
 
 ```bash
 make validate-local-k8s
 ```
+
+It builds local API/Worker/UI images, installs or upgrades the Helm release,
+waits for Kubernetes readiness, creates temporary port-forwards, and then runs
+the full validation suite in one command.
 
 Useful overrides:
 
@@ -116,6 +121,18 @@ UI_PORT=19081 \
 KEEP_PORT_FORWARDS=true \
 make validate-local-k8s
 ```
+
+To include a live Chaos Mesh stress experiment in the full suite, enable the
+opt-in chaos smoke:
+
+```bash
+CHAOS_SMOKE=true make validate-local-k8s
+```
+
+The chaos smoke has been validated locally against the self-contained Helm
+deployment. It creates a short Worker-targeted `StressChaos`, verifies the
+experiment through the API and UI, confirms API/Worker health, and checks that a
+scenario still reaches a terminal state or can be stopped cleanly.
 
 ## Release image verification
 
@@ -168,7 +185,10 @@ curl -sS http://localhost:8080/api/v1/scenarios
 curl -sS http://localhost:8080/api/v1/metrics/snapshot
 ```
 
-The UI scenarios page should show the scenario moving through `running` and then `completed` after the Worker consumes it from RabbitMQ.
+The UI scenarios page should show the scenario moving through `running` and then
+`completed` after the Worker consumes it from RabbitMQ. Stopping a scenario from
+the API or UI persists the `stopped` status and cancels queued or in-flight
+Worker execution so later terminal updates do not overwrite the stop request.
 
 ## Chaos experiments
 
@@ -182,7 +202,10 @@ go run ./cmd/chaos-ctrl status --namespace cluster-probe pod-kill-worker
 go run ./cmd/chaos-ctrl delete --namespace cluster-probe pod-kill-worker
 ```
 
-Only run these commands on clusters where Chaos Mesh CRDs and controllers are installed and permitted to inject the selected failure mode.
+Only run these commands on clusters where Chaos Mesh CRDs and controllers are
+installed and permitted to inject the selected failure mode. The self-contained
+local Helm path installs Chaos Mesh and now has passing local validation,
+including the opt-in `CHAOS_SMOKE=true` live stress check.
 
 ## Kustomize overlays
 
@@ -229,6 +252,7 @@ The `ci` workflow enforces the local quality gates:
 - Helm lint and render
 - Kustomize base and overlay rendering
 - per-service Docker image builds
+- Playwright browser smoke tests
 
 The manual `build-push` workflow publishes multi-architecture images for `api`, `worker`, `ui`, and `chaos-ctrl`.
 
