@@ -10,7 +10,7 @@ VERSION ?= dev
 COMMIT_SHA ?= $(shell git rev-parse --short HEAD)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-.PHONY: build test test-race lint gosec govulncheck secret-scan image-scan docker-build docker-push kustomize-build helm-lint smoke-local smoke-ui local-smoke-k8s validate-local validate-local-k8s review test-integration
+.PHONY: build test test-race test-internal-coverage lint gosec govulncheck secret-scan image-scan docker-build docker-push kustomize-build helm-lint smoke-local smoke-ui local-smoke-k8s validate-local validate-local-k8s review test-integration
 
 build:
 	go build ./...
@@ -23,6 +23,9 @@ test-race:
 
 test-integration:
 	go test -tags=integration ./integration ./internal/db ./internal/messaging
+
+test-internal-coverage:
+	./scripts/check-internal-coverage.sh
 
 lint:
 	golangci-lint run

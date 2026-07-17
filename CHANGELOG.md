@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a repeatable internal package coverage threshold gate to local review.
 - Rendered friendly UI error states for scenario, chaos, and log-stream API
   outages.
 - Hardened API, UI, and Worker Kubernetes security contexts for Helm and Kustomize deployments.

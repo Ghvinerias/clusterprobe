@@ -45,6 +45,7 @@ else
 fi
 run_required "secret scan" gitleaks detect --source . --no-git --redact
 run_step "go race coverage" env GOTOOLCHAIN=go1.25.12 go test ./... -race -coverprofile=coverage.out
+run_step "internal coverage threshold" ./scripts/check-internal-coverage.sh
 run_step "diff check" git diff --check
 
 printf "\nReview summary:\n"
