@@ -21,15 +21,21 @@ import (
 )
 
 type mockAPI struct {
-	scenarios     []workload.ScenarioResponse
-	experiments   []workload.ChaosExperimentResponse
-	logStream     io.ReadCloser
-	deleted       string
-	scenarioErr   error
-	experimentErr error
+	scenarios      []workload.ScenarioResponse
+	experiments    []workload.ChaosExperimentResponse
+	logStream      io.ReadCloser
+	logStreamErr   error
+	deleted        string
+	scenariosErr   error
+	experimentsErr error
+	scenarioErr    error
+	experimentErr  error
 }
 
 func (m *mockAPI) ListScenarios(ctx context.Context) ([]workload.ScenarioResponse, error) {
+	if m.scenariosErr != nil {
+		return nil, m.scenariosErr
+	}
 	return m.scenarios, nil
 }
 
@@ -83,6 +89,9 @@ func (m *mockAPI) StopScenario(ctx context.Context, id string) (workload.Scenari
 }
 
 func (m *mockAPI) ListExperiments(ctx context.Context) ([]workload.ChaosExperimentResponse, error) {
+	if m.experimentsErr != nil {
+		return nil, m.experimentsErr
+	}
 	return m.experiments, nil
 }
 
@@ -118,6 +127,9 @@ func (m *mockAPI) DeleteExperiment(ctx context.Context, id string) error {
 }
 
 func (m *mockAPI) LogsStream(ctx context.Context) (io.ReadCloser, error) {
+	if m.logStreamErr != nil {
+		return nil, m.logStreamErr
+	}
 	if m.logStream == nil {
 		return io.NopCloser(strings.NewReader("event: logs\ndata: ready\n\n")), nil
 	}
@@ -238,6 +250,27 @@ func TestScenariosHandler(t *testing.T) {
 	}
 }
 
+func TestScenariosHandlerLoadErrorRendersFriendlyPage(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{scenariosErr: errors.New("api unavailable")}
+	req := httptest.NewRequest(http.MethodGet, "/scenarios", nil)
+	rec := httptest.NewRecorder()
+
+	server.ListScenarios(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Scenarios unavailable") {
+		t.Fatalf("expected friendly scenarios error page")
+	}
+	if strings.Contains(body, "failed to load scenarios") {
+		t.Fatalf("expected raw load error to be hidden")
+	}
+}
+
 func TestScenarioNewHandler(t *testing.T) {
 	server := newTestServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/scenarios/new", nil)
@@ -302,6 +335,27 @@ func TestChaosHandler(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `hx-get="/chaos/e1/status"`) {
 		t.Fatalf("expected UI status route in chaos table")
+	}
+}
+
+func TestChaosHandlerLoadErrorRendersFriendlyPage(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{experimentsErr: errors.New("api unavailable")}
+	req := httptest.NewRequest(http.MethodGet, "/chaos", nil)
+	rec := httptest.NewRecorder()
+
+	server.ListChaos(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Chaos experiments unavailable") {
+		t.Fatalf("expected friendly chaos error page")
+	}
+	if strings.Contains(body, "failed to load experiments") {
+		t.Fatalf("expected raw load error to be hidden")
 	}
 }
 
@@ -519,5 +573,29 @@ func TestLogsStream(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "event: logs") {
 		t.Fatalf("expected log stream")
+	}
+}
+
+func TestLogsStreamConnectErrorReturnsFriendlySSE(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{logStreamErr: errors.New("api unavailable")}
+	req := httptest.NewRequest(http.MethodGet, "/logs/stream", nil)
+	rec := httptest.NewRecorder()
+
+	server.LogsStream(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "event: logs") {
+		t.Fatalf("expected logs SSE event")
+	}
+	if !strings.Contains(body, "Log stream unavailable") {
+		t.Fatalf("expected friendly log stream error")
+	}
+	if strings.Contains(body, "failed to connect log stream") {
+		t.Fatalf("expected raw stream error to be hidden")
 	}
 }

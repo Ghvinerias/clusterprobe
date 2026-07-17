@@ -19,7 +19,15 @@ func (s *Server) ListChaos(w http.ResponseWriter, r *http.Request) {
 
 	experiments, err := s.api.ListExperiments(ctx)
 	if err != nil {
-		http.Error(w, "failed to load experiments", http.StatusBadGateway)
+		s.renderError(w, http.StatusBadGateway, ErrorData{
+			Active:    "chaos",
+			Title:     "Chaos Experiments Unavailable | ClusterProbe",
+			Heading:   "Chaos experiments unavailable",
+			Message:   "ClusterProbe could not load chaos experiments from the API. Check API health and try again.",
+			Status:    "API unavailable",
+			BackHref:  "/dashboard",
+			BackLabel: "Back to Dashboard",
+		})
 		return
 	}
 

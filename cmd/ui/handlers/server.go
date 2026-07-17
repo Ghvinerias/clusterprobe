@@ -73,6 +73,18 @@ func (s *Server) renderNotFound(w http.ResponseWriter, data NotFoundData) {
 	}
 }
 
+func (s *Server) renderError(w http.ResponseWriter, status int, data ErrorData) {
+	if data.Status == "" {
+		data.Status = http.StatusText(status)
+	}
+	if data.StatusClass == "" {
+		data.StatusClass = "error"
+	}
+	if err := s.renderTemplateStatus(w, "error", data, status); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
 func statusClass(status string) string {
 	lower := strings.ToLower(status)
 	switch {

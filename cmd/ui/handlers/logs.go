@@ -32,7 +32,7 @@ func (s *Server) LogsStream(w http.ResponseWriter, r *http.Request) {
 
 	stream, err := s.api.LogsStream(ctx)
 	if err != nil {
-		http.Error(w, "failed to connect log stream", http.StatusBadGateway)
+		writeLogStreamError(w, "Log stream unavailable. Check API log stream connectivity.")
 		return
 	}
 	defer stream.Close()
@@ -62,5 +62,15 @@ func (s *Server) LogsStream(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+	}
+}
+
+func writeLogStreamError(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	_, _ = w.Write([]byte("event: logs\ndata: " + message + "\n\n"))
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }

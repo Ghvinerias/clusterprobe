@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Rendered friendly UI error states for scenario, chaos, and log-stream API
+  outages.
 - Hardened API, UI, and Worker Kubernetes security contexts for Helm and Kustomize deployments.
 - Added CI security scanning for Go vulnerabilities, secrets, and built service images.
 - Updated Go dependency and build toolchain baselines to remediate vulnerability scan findings.

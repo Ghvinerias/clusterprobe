@@ -29,7 +29,15 @@ func (s *Server) ListScenarios(w http.ResponseWriter, r *http.Request) {
 
 	scenarios, err := s.api.ListScenarios(ctx)
 	if err != nil {
-		http.Error(w, "failed to load scenarios", http.StatusBadGateway)
+		s.renderError(w, http.StatusBadGateway, ErrorData{
+			Active:    "scenarios",
+			Title:     "Scenarios Unavailable | ClusterProbe",
+			Heading:   "Scenarios unavailable",
+			Message:   "ClusterProbe could not load scenarios from the API. Check API health and try again.",
+			Status:    "API unavailable",
+			BackHref:  "/dashboard",
+			BackLabel: "Back to Dashboard",
+		})
 		return
 	}
 

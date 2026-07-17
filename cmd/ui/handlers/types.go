@@ -124,6 +124,18 @@ type LogsData struct {
 	Title  string
 }
 
+// ErrorData renders a user-facing operational error page.
+type ErrorData struct {
+	Active      string
+	Title       string
+	Heading     string
+	Message     string
+	Status      string
+	StatusClass string
+	BackHref    string
+	BackLabel   string
+}
+
 // NotFoundData renders a user-facing missing resource page.
 type NotFoundData struct {
 	Active    string
