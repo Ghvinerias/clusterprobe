@@ -38,6 +38,7 @@ const (
 	queueLow             = "workload.low"
 	startupRetryAttempts = 30
 	startupRetryBackoff  = 2 * time.Second
+	stopWatchInterval    = 500 * time.Millisecond
 )
 
 var (
@@ -349,8 +350,22 @@ func handleMessage(
 		return fmt.Errorf("mark scenario running: %w", err)
 	}
 
-	result, err := gen.Execute(ctx, params)
+	workCtx, cancelWork := context.WithCancel(ctx)
+	stopWatcherDone := watchScenarioStop(workCtx, store, scenario.ID, stopWatchInterval, cancelWork)
+	result, err := gen.Execute(workCtx, params)
+	cancelWork()
+	<-stopWatcherDone
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			latestStatus, statusErr := latestScenarioStatus(ctx, store, scenario.ID)
+			if statusErr != nil {
+				return fmt.Errorf("load latest scenario status: %w", statusErr)
+			}
+			if isStoppedScenarioStatus(latestStatus) {
+				slog.Info("scenario execution canceled after stop", "scenario_id", scenario.ID)
+				return nil
+			}
+		}
 		result.Error = err.Error()
 	}
 

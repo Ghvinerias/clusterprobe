@@ -53,6 +53,14 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 	var ops int64
 
 	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			result := Result{Ops: ops, Duration: time.Since(start), Error: ctx.Err().Error()}
+			finalizeSpan(span, result, ctx.Err())
+			logCompletion("db_read", result, ctx.Err())
+			return result, fmt.Errorf("context: %w", ctx.Err())
+		default:
+		}
 		jitter, err := randomDuration(params.ReadLookbackMs)
 		if err != nil {
 			result := Result{Ops: ops, Duration: time.Since(start), Error: err.Error()}
@@ -66,7 +74,14 @@ func (g *DBReadGenerator) Execute(ctx context.Context, params WorkloadParams) (R
 		var payload []byte
 		if err := params.Store.QueryRow(ctx, selectLoadEventQuery, since).Scan(&payload); err != nil {
 			if isNoRowsError(err) {
-				time.Sleep(10 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					result := Result{Ops: ops, Duration: time.Since(start), Error: ctx.Err().Error()}
+					finalizeSpan(span, result, ctx.Err())
+					logCompletion("db_read", result, ctx.Err())
+					return result, fmt.Errorf("context: %w", ctx.Err())
+				case <-time.After(10 * time.Millisecond):
+				}
 				continue
 			}
 			result := Result{Ops: ops, Duration: time.Since(start), Error: err.Error()}

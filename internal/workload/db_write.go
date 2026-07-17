@@ -38,6 +38,14 @@ func (g *DBWriteGenerator) Execute(ctx context.Context, params WorkloadParams) (
 	var ops int64
 
 	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			result := Result{Ops: ops, Duration: time.Since(start), Error: ctx.Err().Error()}
+			finalizeSpan(span, result, ctx.Err())
+			logCompletion("db_write", result, ctx.Err())
+			return result, fmt.Errorf("context: %w", ctx.Err())
+		default:
+		}
 		payload := map[string]any{
 			"id":          uuid.NewString(),
 			"scenario_id": params.ScenarioID,

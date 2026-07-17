@@ -127,6 +127,26 @@ if [[ -z "$stop_scenario_id" || "$stop_scenario_id" == "null" ]]; then
   exit 1
 fi
 
+echo "smoke: wait for stoppable scenario ${stop_scenario_id} to run"
+stop_deadline=$((SECONDS + 15))
+stop_status=""
+while (( SECONDS < stop_deadline )); do
+  stop_body="$(curl_json "${API_URL}/api/v1/scenarios/${stop_scenario_id}")"
+  stop_status="$(jq -r '.status // ""' <<<"$stop_body")"
+  echo "smoke: stoppable scenario status=${stop_status}"
+
+  if [[ "$stop_status" == "running" ]]; then
+    break
+  fi
+
+  sleep 1
+done
+
+if [[ "$stop_status" != "running" ]]; then
+  echo "stoppable scenario did not start running: ${stop_status}" >&2
+  exit 1
+fi
+
 echo "smoke: stop scenario ${stop_scenario_id}"
 curl_json \
   -H "Content-Type: application/json" \
@@ -134,6 +154,10 @@ curl_json \
   "${API_URL}/api/v1/scenarios/${stop_scenario_id}/stop" |
   jq -e '.status == "stopped" and .name == "'"${stop_scenario_name}"'" and .profile.target_queue == "workload.low"' >/dev/null
 
+curl_json "${API_URL}/api/v1/scenarios/${stop_scenario_id}" |
+  jq -e '.status == "stopped" and .name == "'"${stop_scenario_name}"'"' >/dev/null
+
+sleep 3
 curl_json "${API_URL}/api/v1/scenarios/${stop_scenario_id}" |
   jq -e '.status == "stopped" and .name == "'"${stop_scenario_name}"'"' >/dev/null
 

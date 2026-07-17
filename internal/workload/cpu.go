@@ -29,6 +29,14 @@ func (g *CPUGenerator) Execute(ctx context.Context, params WorkloadParams) (Resu
 	var sink uint64
 
 	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			result := Result{Ops: ops, Duration: time.Since(start), Error: ctx.Err().Error()}
+			finalizeSpan(span, result, ctx.Err())
+			logCompletion("cpu", result, ctx.Err())
+			return result, fmt.Errorf("context: %w", ctx.Err())
+		default:
+		}
 		for i := uint64(0); i < 1000; i++ {
 			sink += i
 			ops++

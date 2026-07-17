@@ -58,6 +58,41 @@ func isStoppedScenarioStatus(status string) bool {
 	return strings.EqualFold(strings.TrimSpace(status), "stopped")
 }
 
+func watchScenarioStop(
+	ctx context.Context,
+	store workload.SQLStore,
+	id string,
+	interval time.Duration,
+	cancel context.CancelFunc,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if interval <= 0 {
+			interval = 500 * time.Millisecond
+		}
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				status, err := latestScenarioStatus(ctx, store, id)
+				if err != nil {
+					continue
+				}
+				if isStoppedScenarioStatus(status) {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	return done
+}
+
 func reportResult(
 	ctx context.Context,
 	scenario workload.ScenarioResponse,

@@ -34,7 +34,18 @@ func (g *fakeGenerator) Called() bool {
 	return g.called
 }
 
+type cancelAwareGenerator struct {
+	called chan struct{}
+}
+
+func (g cancelAwareGenerator) Execute(ctx context.Context, params workload.WorkloadParams) (workload.Result, error) {
+	close(g.called)
+	<-ctx.Done()
+	return workload.Result{Duration: time.Millisecond}, ctx.Err()
+}
+
 type fakeStore struct {
+	mu             sync.Mutex
 	execCalls      int
 	execSQL        []string
 	execArgs       [][]any
@@ -43,6 +54,8 @@ type fakeStore struct {
 }
 
 func (s *fakeStore) Exec(ctx context.Context, sql string, args ...any) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.execCalls++
 	s.execSQL = append(s.execSQL, sql)
 	s.execArgs = append(s.execArgs, args)
@@ -54,6 +67,8 @@ func (s *fakeStore) Query(ctx context.Context, sql string, args ...any) (workloa
 }
 
 func (s *fakeStore) QueryRow(ctx context.Context, sql string, args ...any) workload.Row {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	status := s.latestStatus
 	if len(s.latestStatuses) > 0 {
 		status = s.latestStatuses[0]
@@ -261,6 +276,64 @@ func TestHandleMessagePreservesStoppedScenario(t *testing.T) {
 	}
 }
 
+func TestHandleMessageCancelsInFlightStoppedScenario(t *testing.T) {
+	called := make(chan struct{})
+	gen := cancelAwareGenerator{called: called}
+	gens := map[workload.WorkloadType]workload.Generator{
+		workload.WorkloadTypeCPUBurn: gen,
+	}
+	store := &fakeStore{latestStatuses: []string{"running", "stopped", "stopped"}}
+	redis := &fakeRedis{}
+	publisher := &fakePublisher{}
+
+	scenario := workload.ScenarioResponse{
+		ID:        "scenario-1",
+		Name:      "scenario",
+		Status:    "queued",
+		CreatedAt: time.Now().UTC(),
+		Profile: workload.LoadProfile{
+			WorkloadType:     workload.WorkloadTypeCPUBurn,
+			Duration:         time.Second,
+			PayloadSizeBytes: 1024 * 1024,
+			Concurrency:      2,
+			RPS:              1,
+			TargetQueue:      "workload.high",
+		},
+	}
+	body, err := json.Marshal(scenario)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- handleMessage(context.Background(), amqp.Delivery{Body: body}, gens, store, redis, publisher)
+	}()
+
+	select {
+	case <-called:
+	case <-time.After(time.Second):
+		t.Fatalf("expected generator to start")
+	}
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("handleMessage: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("expected stopped scenario to cancel in-flight workload")
+	}
+
+	statuses := scenarioStatuses(t, store)
+	if len(statuses) != 1 || statuses[0] != "running" {
+		t.Fatalf("expected only running status event, got %v", statuses)
+	}
+	if redis.counters["cp:errors:total"] != 0 {
+		t.Fatalf("expected stopped cancellation not to increment error counter")
+	}
+}
+
 func TestHandleMessageSkipsPreStoppedScenario(t *testing.T) {
 	gen := &fakeGenerator{result: workload.Result{Ops: 1, Duration: time.Millisecond}}
 	gens := map[workload.WorkloadType]workload.Generator{
@@ -308,6 +381,8 @@ func (e assertError) Error() string { return string(e) }
 func scenarioStatuses(t *testing.T, store *fakeStore) []string {
 	t.Helper()
 
+	store.mu.Lock()
+	defer store.mu.Unlock()
 	statuses := make([]string, 0, len(store.execArgs))
 	for _, args := range store.execArgs {
 		if len(args) < 2 {
@@ -332,6 +407,8 @@ func scenarioStatuses(t *testing.T, store *fakeStore) []string {
 }
 
 func hasScenarioEventInsert(store *fakeStore) bool {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 	for _, sql := range store.execSQL {
 		if sql == insertScenarioQuery {
 			return true

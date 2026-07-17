@@ -92,6 +92,8 @@
   metadata and Worker terminal updates do not overwrite a user-requested stop.
 - Expanded local product smoke validation to cover scenario Stop API behavior
   and stopped scenario rendering in the UI.
+- Added Worker-side cancellation for in-flight stopped scenarios and made CPU,
+  DB write, and DB read workloads honor context cancellation promptly.
 
 ## v0.1.0
 
