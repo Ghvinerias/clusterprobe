@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a detailed user guide with app screenshots and command-line workflows.
 - Expanded release image verification to check required OCI provenance labels.
 - Hardened mixed workload duration splitting so invalid ratios fail early and
   valid short phases do not run with zero duration.

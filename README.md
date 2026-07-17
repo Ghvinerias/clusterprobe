@@ -51,6 +51,7 @@ integration, smoke, and Playwright browser checks. Use `make smoke-local` when
 the API and UI are already reachable and you only need the product smoke.
 
 **Docs**
+- User guide: `docs/user-guide.md`
 - Getting started: `docs/getting-started.md`
 - Helm values: `docs/helm-values.md`
 - Notifications: `docs/notifications.md`
