@@ -252,6 +252,58 @@ func (g stubGenerator) Execute(ctx context.Context, params WorkloadParams) (Resu
 	return g.result, g.err
 }
 
+type recordingGenerator struct {
+	durations *[]int64
+}
+
+func (g recordingGenerator) Execute(ctx context.Context, params WorkloadParams) (Result, error) {
+	*g.durations = append(*g.durations, params.DurationMs)
+	return Result{Ops: 1, Duration: time.Duration(params.DurationMs) * time.Millisecond}, nil
+}
+
+func TestSplitMixedDurationsRejectsInvalidProfile(t *testing.T) {
+	_, err := splitMixedDurations(10, MixedProfile{CPUPercent: -1, DBWritePercent: 50, DBReadPercent: 50})
+	require.Error(t, err)
+
+	_, err = splitMixedDurations(10, MixedProfile{CPUPercent: 50, DBWritePercent: 50, DBReadPercent: 50})
+	require.Error(t, err)
+
+	_, err = splitMixedDurations(2, MixedProfile{CPUPercent: 34, DBWritePercent: 33, DBReadPercent: 33})
+	require.Error(t, err)
+}
+
+func TestSplitMixedDurationsKeepsPositivePhases(t *testing.T) {
+	durations, err := splitMixedDurations(5, MixedProfile{CPUPercent: 1, DBWritePercent: 1, DBReadPercent: 98})
+	require.NoError(t, err)
+	require.Greater(t, durations.cpuMs, int64(0))
+	require.Greater(t, durations.writeMs, int64(0))
+	require.Greater(t, durations.readMs, int64(0))
+	require.Equal(t, int64(5), durations.cpuMs+durations.writeMs+durations.readMs)
+}
+
+func TestMixedGeneratorSkipsZeroPercentPhases(t *testing.T) {
+	var cpuDurations []int64
+	var writeDurations []int64
+	var readDurations []int64
+	gen := &MixedGenerator{
+		CPU:     recordingGenerator{durations: &cpuDurations},
+		DBWrite: recordingGenerator{durations: &writeDurations},
+		DBRead:  recordingGenerator{durations: &readDurations},
+	}
+
+	result, err := gen.Execute(context.Background(), WorkloadParams{
+		DurationMs:   5,
+		WorkloadType: WorkloadTypeMixed,
+		MixedProfile: MixedProfile{CPUPercent: 100},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), result.Ops)
+	require.Equal(t, []int64{5}, cpuDurations)
+	require.Empty(t, writeDurations)
+	require.Empty(t, readDurations)
+}
+
 func TestMixedGeneratorErrors(t *testing.T) {
 	gen := &MixedGenerator{}
 	_, err := gen.Execute(context.Background(), WorkloadParams{DurationMs: 1, WorkloadType: WorkloadTypeMixed})

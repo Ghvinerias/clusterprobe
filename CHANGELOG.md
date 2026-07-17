@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Hardened mixed workload duration splitting so invalid ratios fail early and
+  valid short phases do not run with zero duration.
 - Added a repeatable internal package coverage threshold gate to local review.
 - Rendered friendly UI error states for scenario, chaos, and log-stream API
   outages.
