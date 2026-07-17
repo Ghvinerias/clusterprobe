@@ -18,10 +18,23 @@ spec:
         {{- include "clusterprobe.componentLabels" (dict "root" . "component" "api") | nindent 8 }}
     spec:
       serviceAccountName: {{ include "clusterprobe.componentName" (dict "root" . "component" "api") }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
               containerPort: {{ .Values.api.service.port }}

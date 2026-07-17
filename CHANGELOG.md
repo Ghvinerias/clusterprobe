@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Hardened API, UI, and Worker Kubernetes security contexts for Helm and Kustomize deployments.
 - Added CI security scanning for Go vulnerabilities, secrets, and built service images.
 - Updated Go dependency and build toolchain baselines to remediate vulnerability scan findings.
 - Expanded local review gates with vulnerability, secret, and image scanning targets.

@@ -158,3 +158,7 @@ not include KEDA resources.
 For local Colima/k3s validation, `make validate-local-k8s` deploys with
 `chaos.enabled=true` and verifies the bundled controller and daemon roll out.
 Set `CHAOS_SMOKE=true` to also run the opt-in live Worker-targeted stress smoke.
+The API, UI, and Worker app containers run as non-root with a runtime default
+seccomp profile, dropped Linux capabilities, disabled privilege escalation, and
+read-only root filesystems. Chaos Mesh daemon privileges are intentionally
+separate because fault injection requires host and runtime access.
