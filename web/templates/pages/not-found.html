@@ -1,0 +1,13 @@
+{{define "content"}}
+<div class="header">
+  <div>
+    <h2>{{.Heading}}</h2>
+    <span class="badge warn">404</span>
+  </div>
+  <a class="btn" href="{{.BackHref}}">{{.BackLabel}}</a>
+</div>
+
+<section class="card">
+  <p>{{.Message}}</p>
+</section>
+{{end}}

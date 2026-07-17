@@ -46,6 +46,10 @@ func NewServer(
 
 // RenderTemplate renders a named template.
 func (s *Server) RenderTemplate(w http.ResponseWriter, page string, data any) error {
+	return s.renderTemplateStatus(w, page, data, http.StatusOK)
+}
+
+func (s *Server) renderTemplateStatus(w http.ResponseWriter, page string, data any, status int) error {
 	tmpl, ok := s.templates[page]
 	if !ok {
 		return fmt.Errorf("template not found: %s", page)
@@ -55,11 +59,18 @@ func (s *Server) RenderTemplate(w http.ResponseWriter, page string, data any) er
 		return fmt.Errorf("execute template %s: %w", page, err)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	_, err := w.Write(buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("write template response: %w", err)
 	}
 	return nil
+}
+
+func (s *Server) renderNotFound(w http.ResponseWriter, data NotFoundData) {
+	if err := s.renderTemplateStatus(w, "not-found", data, http.StatusNotFound); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
 }
 
 func statusClass(status string) string {
@@ -193,4 +204,12 @@ func isTerminalScenarioStatus(status string) bool {
 	return strings.Contains(lower, "complete") ||
 		strings.Contains(lower, "fail") ||
 		strings.Contains(lower, "stop")
+}
+
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "404") || strings.Contains(message, "not found")
 }

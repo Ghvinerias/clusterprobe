@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"io"
 	"io/fs"
@@ -20,10 +21,12 @@ import (
 )
 
 type mockAPI struct {
-	scenarios   []workload.ScenarioResponse
-	experiments []workload.ChaosExperimentResponse
-	logStream   io.ReadCloser
-	deleted     string
+	scenarios     []workload.ScenarioResponse
+	experiments   []workload.ChaosExperimentResponse
+	logStream     io.ReadCloser
+	deleted       string
+	scenarioErr   error
+	experimentErr error
 }
 
 func (m *mockAPI) ListScenarios(ctx context.Context) ([]workload.ScenarioResponse, error) {
@@ -41,6 +44,9 @@ func (m *mockAPI) CreateScenario(ctx context.Context, req workload.ScenarioReque
 }
 
 func (m *mockAPI) GetScenario(ctx context.Context, id string) (workload.ScenarioResponse, error) {
+	if m.scenarioErr != nil {
+		return workload.ScenarioResponse{}, m.scenarioErr
+	}
 	for _, scenario := range m.scenarios {
 		if scenario.ID == id {
 			return scenario, nil
@@ -94,6 +100,9 @@ func (m *mockAPI) CreateExperiment(
 }
 
 func (m *mockAPI) GetExperiment(ctx context.Context, id string) (workload.ChaosExperimentResponse, error) {
+	if m.experimentErr != nil {
+		return workload.ChaosExperimentResponse{}, m.experimentErr
+	}
 	return workload.ChaosExperimentResponse{
 		ID:        id,
 		Name:      "pod-kill",
@@ -245,6 +254,27 @@ func TestScenarioNewHandler(t *testing.T) {
 	}
 }
 
+func TestScenarioDetailNotFoundHandler(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{scenarioErr: errors.New("api error: 404 Not Found")}
+	req := requestWithRouteParam(http.MethodGet, "/scenarios/missing", "id", "missing")
+	rec := httptest.NewRecorder()
+
+	server.ScenarioDetail(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Scenario not found") {
+		t.Fatalf("expected friendly not-found body")
+	}
+	if strings.Contains(body, "failed to load scenario") {
+		t.Fatalf("expected raw load error to be hidden")
+	}
+}
+
 func TestChaosHandler(t *testing.T) {
 	server := newTestServer(t)
 	server.api = &mockAPI{
@@ -288,6 +318,27 @@ func TestChaosNewHandler(t *testing.T) {
 	}
 	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
 		t.Fatalf("expected html content type")
+	}
+}
+
+func TestChaosDetailNotFoundHandler(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{experimentErr: errors.New("api error: 404 Not Found")}
+	req := requestWithRouteParam(http.MethodGet, "/chaos/missing", "id", "missing")
+	rec := httptest.NewRecorder()
+
+	server.ChaosDetail(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Chaos experiment not found") {
+		t.Fatalf("expected friendly not-found body")
+	}
+	if strings.Contains(body, "failed to load experiment") {
+		t.Fatalf("expected raw load error to be hidden")
 	}
 }
 

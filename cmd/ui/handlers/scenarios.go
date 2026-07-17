@@ -84,6 +84,17 @@ func (s *Server) ScenarioDetail(w http.ResponseWriter, r *http.Request) {
 
 	scenario, err := s.api.GetScenario(ctx, id)
 	if err != nil {
+		if isNotFoundError(err) {
+			s.renderNotFound(w, NotFoundData{
+				Active:    "scenarios",
+				Title:     "Scenario Not Found | ClusterProbe",
+				Heading:   "Scenario not found",
+				Message:   "The scenario may have been deleted or the ID is no longer available.",
+				BackHref:  "/scenarios",
+				BackLabel: "Back to Scenarios",
+			})
+			return
+		}
 		http.Error(w, "failed to load scenario", http.StatusBadGateway)
 		return
 	}

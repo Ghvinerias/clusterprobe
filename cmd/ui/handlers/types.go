@@ -123,3 +123,13 @@ type LogsData struct {
 	Active string
 	Title  string
 }
+
+// NotFoundData renders a user-facing missing resource page.
+type NotFoundData struct {
+	Active    string
+	Title     string
+	Heading   string
+	Message   string
+	BackHref  string
+	BackLabel string
+}

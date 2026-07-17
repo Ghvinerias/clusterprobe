@@ -68,6 +68,17 @@ func (s *Server) ChaosDetail(w http.ResponseWriter, r *http.Request) {
 
 	experiment, err := s.api.GetExperiment(ctx, id)
 	if err != nil {
+		if isNotFoundError(err) {
+			s.renderNotFound(w, NotFoundData{
+				Active:    "chaos",
+				Title:     "Chaos Experiment Not Found | ClusterProbe",
+				Heading:   "Chaos experiment not found",
+				Message:   "The experiment may have been deleted or the ID is no longer available.",
+				BackHref:  "/chaos",
+				BackLabel: "Back to Chaos",
+			})
+			return
+		}
 		http.Error(w, "failed to load experiment", http.StatusBadGateway)
 		return
 	}
