@@ -44,6 +44,25 @@ jobs:
             coverage.out
             internal-coverage.out
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Install security tools
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/zricethezav/gitleaks/v8@latest
+      - name: Static security scan
+        run: gosec ./...
+      - name: Vulnerability scan
+        run: GOTOOLCHAIN=go1.25.12 govulncheck ./...
+      - name: Secret scan
+        run: gitleaks detect --source . --no-git --redact
+
   integration:
     runs-on: ubuntu-latest
     steps:
@@ -95,8 +114,16 @@ jobs:
           context: .
           file: ./cmd/${{ matrix.service }}/Dockerfile
           push: false
+          load: true
           tags: clusterprobe-${{ matrix.service }}:ci
           build-args: |
             VERSION=ci
             COMMIT_SHA=${{ github.sha }}
             BUILD_DATE=ci
+      - name: Scan ${{ matrix.service }} image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: clusterprobe-${{ matrix.service }}:ci
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
