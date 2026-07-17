@@ -78,6 +78,12 @@ type ScenarioDetailData struct {
 	Events   []ScenarioView
 }
 
+// ScenarioEventsData renders scenario lifecycle event partials.
+type ScenarioEventsData struct {
+	Scenario ScenarioView
+	Events   []ScenarioView
+}
+
 // ChaosListData renders chaos list.
 type ChaosListData struct {
 	Active      string

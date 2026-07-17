@@ -82,6 +82,42 @@ test.describe.serial('ClusterProbe browser smoke', () => {
     await expect(lifecycle.getByText('completed')).toBeVisible();
   });
 
+  test('scenario detail refreshes lifecycle events while active', async ({ page }) => {
+    const name = `ui-live-events-${Date.now()}`;
+    const create = await api.post('/api/v1/scenarios', {
+      data: {
+        name,
+        profile: {
+          rps: 1,
+          duration: 8_000_000_000,
+          payload_size_bytes: 0,
+          concurrency: 1,
+          target_queue: 'workload.high',
+          workload_type: 'db_write',
+        },
+      },
+    });
+    expect(create.status()).toBe(202);
+    const scenario = await create.json();
+    expect(scenario.id).toBeTruthy();
+
+    await page.goto(`/scenarios/${scenario.id}`);
+    const lifecycle = page.locator('section.card').filter({ hasText: 'Lifecycle Events' });
+    await expect(lifecycle).toBeVisible();
+    await expect(page.locator(`#scenario-events-${scenario.id}`)).toHaveAttribute('hx-get', `/scenarios/${scenario.id}/events`);
+    await expect(lifecycle.getByText('queued')).toBeVisible();
+    await expect(lifecycle.getByText(/running|completed/)).toBeVisible({ timeout: 15_000 });
+
+    await pollJSON(
+      async () => {
+        const response = await api.get(`/api/v1/scenarios/${scenario.id}`);
+        expect(response.ok()).toBeTruthy();
+        return response.json();
+      },
+      (body) => ['completed', 'stopped', 'failed'].includes(body.status),
+    );
+  });
+
   test('scenario can be stopped from the UI without losing metadata', async ({ page }) => {
     const name = `ui-stop-${Date.now()}`;
     const create = await api.post('/api/v1/scenarios', {

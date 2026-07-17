@@ -362,6 +362,50 @@ func TestScenarioRowHandler(t *testing.T) {
 	}
 }
 
+func TestScenarioEventsHandler(t *testing.T) {
+	server := newTestServer(t)
+	server.api = &mockAPI{
+		scenarios: []workload.ScenarioResponse{
+			{
+				ID:        "s1",
+				Name:      "scenario",
+				Status:    "queued",
+				CreatedAt: time.Now(),
+				Profile: workload.LoadProfile{
+					WorkloadType: workload.WorkloadTypeDBWrite,
+					TargetQueue:  "workload.high",
+				},
+			},
+			{
+				ID:        "s1",
+				Name:      "scenario",
+				Status:    "running",
+				CreatedAt: time.Now(),
+				Profile: workload.LoadProfile{
+					WorkloadType: workload.WorkloadTypeDBWrite,
+					TargetQueue:  "workload.high",
+				},
+			},
+		},
+	}
+	req := requestWithRouteParam(http.MethodGet, "/scenarios/s1/events", "id", "s1")
+	rec := httptest.NewRecorder()
+
+	server.ScenarioEvents(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<tbody id="scenario-events-s1"`) {
+		t.Fatalf("expected lifecycle table body partial")
+	}
+	if !strings.Contains(body, "queued") || !strings.Contains(body, "running") {
+		t.Fatalf("expected lifecycle events in partial")
+	}
+}
+
 func requestWithRouteParam(method string, target string, key string, value string) *http.Request {
 	req := httptest.NewRequest(method, target, nil)
 	routeCtx := chi.NewRouteContext()

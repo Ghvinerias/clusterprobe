@@ -45,18 +45,7 @@
         <th>Queue</th>
       </tr>
     </thead>
-    <tbody>
-      {{range .Events}}
-        <tr>
-          <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
-          <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
-          <td>{{.Profile.WorkloadType}}</td>
-          <td>{{.Profile.TargetQueue}}</td>
-        </tr>
-      {{else}}
-        <tr><td colspan="4">No lifecycle events found.</td></tr>
-      {{end}}
-    </tbody>
+    {{template "scenario-events" .}}
   </table>
 </section>
 {{end}}

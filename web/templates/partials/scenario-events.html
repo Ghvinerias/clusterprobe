@@ -1,0 +1,14 @@
+{{define "scenario-events"}}
+<tbody id="scenario-events-{{.Scenario.ID}}" {{if not .Scenario.Terminal}}hx-get="/scenarios/{{.Scenario.ID}}/events" hx-trigger="every 2s" hx-swap="outerHTML"{{end}}>
+  {{range .Events}}
+    <tr>
+      <td><span class="badge {{.StatusClass}}">{{.Status}}</span></td>
+      <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+      <td>{{.Profile.WorkloadType}}</td>
+      <td>{{.Profile.TargetQueue}}</td>
+    </tr>
+  {{else}}
+    <tr><td colspan="4">No lifecycle events found.</td></tr>
+  {{end}}
+</tbody>
+{{end}}

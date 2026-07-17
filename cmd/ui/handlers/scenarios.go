@@ -93,18 +93,45 @@ func (s *Server) ScenarioDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	eventViews := make([]ScenarioView, 0, len(events))
-	for _, event := range events {
-		eventViews = append(eventViews, buildScenarioView(event))
-	}
-
 	data := ScenarioDetailData{
 		Active:   "scenarios",
 		Title:    "Scenario | ClusterProbe",
 		Scenario: buildScenarioView(scenario),
-		Events:   eventViews,
+		Events:   buildScenarioViews(events),
 	}
 	if err := s.RenderTemplate(w, "scenario-detail", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+// ScenarioEvents renders lifecycle history for one scenario.
+func (s *Server) ScenarioEvents(w http.ResponseWriter, r *http.Request) {
+	ctx, span := s.newSpan(r.Context(), "ui.scenarios.events")
+	defer span.End()
+	defer s.logRequest(r, "scenarios_events")
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+
+	scenario, err := s.api.GetScenario(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load scenario", http.StatusBadGateway)
+		return
+	}
+	events, err := s.api.ListScenarioEvents(ctx, id)
+	if err != nil {
+		http.Error(w, "failed to load scenario events", http.StatusBadGateway)
+		return
+	}
+
+	data := ScenarioEventsData{
+		Scenario: buildScenarioView(scenario),
+		Events:   buildScenarioViews(events),
+	}
+	if err := s.renderScenarioEvents(w, data); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -216,4 +243,23 @@ func (s *Server) renderScenarioRow(w http.ResponseWriter, view ScenarioView) err
 		return err
 	}
 	return nil
+}
+
+func (s *Server) renderScenarioEvents(w http.ResponseWriter, data ScenarioEventsData) error {
+	tmpl, ok := s.templates["scenario-detail"]
+	if !ok {
+		return fmt.Errorf("template not found: scenario-detail")
+	}
+	if err := tmpl.ExecuteTemplate(w, "scenario-events", data); err != nil {
+		return fmt.Errorf("execute scenario events template: %w", err)
+	}
+	return nil
+}
+
+func buildScenarioViews(scenarios []workload.ScenarioResponse) []ScenarioView {
+	views := make([]ScenarioView, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		views = append(views, buildScenarioView(scenario))
+	}
+	return views
 }
