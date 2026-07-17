@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Expanded release image verification to check required OCI provenance labels.
 - Hardened mixed workload duration splitting so invalid ratios fail early and
   valid short phases do not run with zero duration.
 - Added a repeatable internal package coverage threshold gate to local review.

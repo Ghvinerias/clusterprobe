@@ -10,7 +10,7 @@ VERSION ?= dev
 COMMIT_SHA ?= $(shell git rev-parse --short HEAD)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-.PHONY: build test test-race test-internal-coverage lint gosec govulncheck secret-scan image-scan docker-build docker-push kustomize-build helm-lint smoke-local smoke-ui local-smoke-k8s validate-local validate-local-k8s review test-integration
+.PHONY: build test test-race test-internal-coverage lint gosec govulncheck secret-scan image-scan verify-release-images docker-build docker-push kustomize-build helm-lint smoke-local smoke-ui local-smoke-k8s validate-local validate-local-k8s review test-integration
 
 build:
 	go build ./...
@@ -52,6 +52,9 @@ image-scan:
 			grype "$$image" --fail-on high; \
 		fi; \
 	done
+
+verify-release-images:
+	REGISTRY=$(REGISTRY) TAG=$(TAG) COMMIT_SHA=$(COMMIT_SHA) SERVICES="$(SERVICES)" ./scripts/verify-release-images.sh
 
 docker-build:
 	for service in $(SERVICES); do \

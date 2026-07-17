@@ -9,6 +9,7 @@ COMMIT_SHA="${COMMIT_SHA:-$(git rev-parse --short HEAD)}"
 TAG="${TAG:-$COMMIT_SHA}"
 SERVICES="${SERVICES:-api worker ui chaos-ctrl}"
 VERIFY_PULL="${VERIFY_PULL:-false}"
+EXPECTED_SOURCE="${EXPECTED_SOURCE:-https://github.com/Ghvinerias/clusterprobe}"
 
 require_command() {
   local command="$1"
@@ -46,21 +47,53 @@ ensure_local_image() {
 }
 
 inspect_label() {
-  local image="$1"
-  local label="$2"
-  docker image inspect \
+	local image="$1"
+	local label="$2"
+	docker image inspect \
     --format "{{ index .Config.Labels \"$label\" }}" \
-    "$image"
+		"$image"
+}
+
+expected_title() {
+	local service="$1"
+	printf "clusterprobe-%s" "$service"
+}
+
+verify_label_equals() {
+	local image="$1"
+	local label="$2"
+	local expected="$3"
+	local value
+	value="$(inspect_label "$image" "$label")"
+	if [[ -z "$value" || "$value" == "<no value>" ]]; then
+		echo "image $image is missing label $label" >&2
+		exit 1
+	fi
+	if [[ "$value" != "$expected" ]]; then
+		echo "image $image has label $label=$value, expected $expected" >&2
+		exit 1
+	fi
+}
+
+verify_label_present() {
+	local image="$1"
+	local label="$2"
+	local value
+	value="$(inspect_label "$image" "$label")"
+	if [[ -z "$value" || "$value" == "<no value>" ]]; then
+		echo "image $image is missing label $label" >&2
+		exit 1
+	fi
 }
 
 verify_local_labels() {
-  local image="$1"
-  local revision
-  revision="$(inspect_label "$image" "org.opencontainers.image.revision")"
-  if [[ "$revision" != "$COMMIT_SHA" ]]; then
-    echo "image $image has revision label $revision, expected $COMMIT_SHA" >&2
-    exit 1
-  fi
+	local service="$1"
+	local image="$2"
+	verify_label_equals "$image" "org.opencontainers.image.title" "$(expected_title "$service")"
+	verify_label_equals "$image" "org.opencontainers.image.revision" "$COMMIT_SHA"
+	verify_label_equals "$image" "org.opencontainers.image.source" "$EXPECTED_SOURCE"
+	verify_label_present "$image" "org.opencontainers.image.created"
+	verify_label_present "$image" "org.opencontainers.image.version"
 }
 
 verify_chaos_binary_metadata() {
@@ -90,8 +123,8 @@ for service in $SERVICES; do
 
   if ensure_local_image "$image"; then
     echo "local image: present"
-    verify_local_labels "$image"
-    echo "revision label: ok"
+    verify_local_labels "$service" "$image"
+    echo "oci labels: ok"
     if [[ "$service" == "chaos-ctrl" ]]; then
       verify_chaos_binary_metadata "$image"
       echo "chaos-ctrl metadata: ok"

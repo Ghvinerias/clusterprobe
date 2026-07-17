@@ -139,7 +139,7 @@ scenario still reaches a terminal state or can be stopped cleanly.
 Before promoting a release tag, verify that all expected service images exist:
 
 ```bash
-TAG=$(git rev-parse --short HEAD) ./scripts/verify-release-images.sh
+TAG=$(git rev-parse --short HEAD) make verify-release-images
 ```
 
 The script checks `api`, `worker`, `ui`, and `chaos-ctrl` under
@@ -153,8 +153,8 @@ COMMIT_SHA=570a350 \
 ./scripts/verify-release-images.sh
 ```
 
-When images are already local, the script validates their
-`org.opencontainers.image.revision` label. Set `VERIFY_PULL=true` to pull remote
+When images are already local, the script validates their OCI title, revision,
+source, creation, and version labels. Set `VERIFY_PULL=true` to pull remote
 images first and validate labels locally. The `chaos-ctrl` image is also checked
 against its embedded `version -o json` build metadata.
 
